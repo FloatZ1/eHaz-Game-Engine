@@ -30,3 +30,4 @@
 *.exe
 *.out
 *.app
+/dependencies/EnvHaz/EnvHaz-Graphics
