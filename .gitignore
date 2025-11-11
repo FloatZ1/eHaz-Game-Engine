@@ -30,4 +30,4 @@ build/*
 *.exe
 *.out
 *.app
-/dependencies/EnvHaz/EnvHaz-Graphics
+Engine/dependencies/EnvHaz/EnvHaz-Graphics

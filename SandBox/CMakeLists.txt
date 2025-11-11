@@ -12,7 +12,7 @@ target_include_directories(SandBox PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}/include"
 )
 
-target_link_libraries(SandBox PRIVATE EnvHazGraphics)
+target_link_libraries(SandBox PRIVATE eHazEngine)
 
 # ------------------------------
 # Add a custom run target that uses NVIDIA GPU
