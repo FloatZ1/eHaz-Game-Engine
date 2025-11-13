@@ -2,6 +2,7 @@
 #define EHAZ_CORE_EVENT_QUEUE
 
 #include "Engine/include/Core/Event.hpp"
+#include <SDL3/SDL_events.h>
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -14,6 +15,74 @@ class EventQueue {
 public:
   void push_back(std::unique_ptr<Event> event) {
     m_Events.push_back(std::move(event));
+  }
+
+  void ProcessSDLEvents() {
+    static bool firstMouse = true;
+    static float lastX = 0.0f;
+    static float lastY = 0.0f;
+
+    SDL_Event events;
+
+    while (SDL_PollEvent(&events)) {
+      switch (events.type) {
+
+      case SDL_EVENT_QUIT: {
+
+        push_back(std::make_unique<QuitEvent>());
+
+      } break;
+
+      case SDL_EVENT_KEY_DOWN: {
+
+        push_back(std::make_unique<KeyDownEvent>(events.key.key));
+      }
+
+      break;
+
+      case SDL_EVENT_KEY_UP: {
+
+        push_back(std::make_unique<KeyReleasedEvent>(events.key.key));
+
+      } break;
+
+      case SDL_EVENT_MOUSE_MOTION: {
+        float xpos = static_cast<float>(events.motion.x);
+        float ypos = static_cast<float>(events.motion.y);
+
+        if (firstMouse) {
+          lastX = xpos;
+          lastY = ypos;
+          firstMouse = false;
+        }
+
+        float xoffset = xpos - lastX;
+        float yoffset =
+            lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+        lastX = xpos;
+        lastY = ypos;
+
+        push_back(std::make_unique<MouseMoveEvent>(xoffset, yoffset));
+      } break;
+
+      case SDL_EVENT_MOUSE_WHEEL: {
+        float yoffset = static_cast<float>(events.wheel.y);
+        float xoffset = static_cast<float>(events.wheel.x);
+        push_back(std::make_unique<MouseScrollEvent>(xoffset, yoffset));
+
+      } break;
+
+      case SDL_EVENT_WINDOW_RESIZED: {
+
+        int width = events.window.data1;
+        int height = events.window.data2;
+
+        push_back(std::make_unique<WindowResizeEvent>(width, height));
+
+      } break;
+      }
+    }
   }
 
   void ClearHandledEvents() {

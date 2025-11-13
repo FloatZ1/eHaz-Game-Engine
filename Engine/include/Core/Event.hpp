@@ -15,8 +15,10 @@ enum EventType {
   EVENT_MOUSE_BUTTON_DOWN = 2,
   EVENT_MOUSE_BUTTON_RELEASED = 3,
   EVENT_MOUSE_MOVE = 4,
-  EVENT_MOUSE_SCROLL = 5
+  EVENT_MOUSE_SCROLL = 5,
 
+  EVENT_WINDOW_RESIZE = 6,
+  EVENT_APPLICATION_QUIT = 7
 };
 
 enum EventCategory {
@@ -40,8 +42,10 @@ public:
 };
 
 class KeyDownEvent : public Event {
+public:
+  EHAZ_Keycode key;
 
-  EHAZ_Scancode key;
+  KeyDownEvent(EHAZ_Keycode key) : key(key) {}
 
   EventType GetEventType() override { return EventType::EVENT_KEY_DOWN; }
 
@@ -49,11 +53,13 @@ class KeyDownEvent : public Event {
     return EventCategoryInput | EventCategoryKeyboard;
   }
 
-  EHAZ_Scancode GetKey() { return key; }
+  EHAZ_Keycode GetKey() { return key; }
 };
 class KeyReleasedEvent : public Event {
+public:
+  EHAZ_Keycode key;
 
-  EHAZ_Scancode key;
+  KeyReleasedEvent(EHAZ_Keycode key) : key(key) {}
 
   EventType GetEventType() override { return EventType::EVENT_KEY_RELEASED; }
 
@@ -61,7 +67,7 @@ class KeyReleasedEvent : public Event {
     return EventCategoryInput | EventCategoryKeyboard;
   }
 
-  EHAZ_Scancode GetKey() { return key; }
+  EHAZ_Keycode GetKey() { return key; }
 };
 class MouseButtonDownEvent : public Event {
 
@@ -127,6 +133,29 @@ public:
   int GetEventCategories() override {
     return EventCategoryInput | EventCategoryMouse;
   }
+};
+
+class WindowResizeEvent : public Event {
+public:
+  int w, h;
+
+  WindowResizeEvent(int width, int height) : w(width), h(height) {}
+
+  float GetWidth() const { return w; }
+  float GetHeight() const { return h; }
+
+  EventType GetEventType() override { return EventType::EVENT_WINDOW_RESIZE; }
+
+  int GetEventCategories() override { return EventCategoryApplication; }
+};
+
+class QuitEvent : public Event {
+public:
+  EventType GetEventType() override {
+    return EventType::EVENT_APPLICATION_QUIT;
+  }
+
+  int GetEventCategories() override { return EventCategoryApplication; }
 };
 
 } // namespace eHaz
