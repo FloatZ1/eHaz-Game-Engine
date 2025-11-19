@@ -9,7 +9,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-option(BUILD_SHARED_LIBS "Build shared instead of static libraries" ON)
+#option(BUILD_SHARED_LIBS "Build shared instead of static libraries" ON)
 add_compile_definitions(PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 
 # ────────────────────────────────────────────────
@@ -23,6 +23,7 @@ add_subdirectory(dependencies/EnvHaz/EnvHaz-Graphics/lib/)
 file(GLOB_RECURSE EHAZENGINE_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*/*.cpp"
+  
 )
 
 add_library(eHazEngine SHARED ${EHAZENGINE_SOURCES})
@@ -30,6 +31,7 @@ add_library(eHazEngine SHARED ${EHAZENGINE_SOURCES})
 target_include_directories(eHazEngine
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+         ${CMAKE_CURRENT_SOURCE_DIR}/include/UI/ImGui
 )
 
 # ────────────────────────────────────────────────

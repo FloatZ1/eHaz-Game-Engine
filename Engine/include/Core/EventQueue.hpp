@@ -18,9 +18,6 @@ public:
   }
 
   void ProcessSDLEvents() {
-    static bool firstMouse = true;
-    static float lastX = 0.0f;
-    static float lastY = 0.0f;
 
     SDL_Event events;
 
@@ -50,20 +47,20 @@ public:
         float xpos = static_cast<float>(events.motion.x);
         float ypos = static_cast<float>(events.motion.y);
 
-        if (firstMouse) {
-          lastX = xpos;
-          lastY = ypos;
-          firstMouse = false;
-        }
+        /* if (firstMouse) {
+           lastX = xpos;
+           lastY = ypos;
+           firstMouse = false;
+         }
 
-        float xoffset = xpos - lastX;
-        float yoffset =
-            lastY - ypos; // reversed since y-coordinates go from bottom to top
+         float xoffset = xpos - lastX;
+         float yoffset =
+             lastY - ypos; // reversed since y-coordinates go from bottom to top
 
-        lastX = xpos;
-        lastY = ypos;
+         lastX = xpos;
+         lastY = ypos;  */
 
-        push_back(std::make_unique<MouseMoveEvent>(xoffset, yoffset));
+        push_back(std::make_unique<MouseMoveEvent>(xpos, ypos));
       } break;
 
       case SDL_EVENT_MOUSE_WHEEL: {

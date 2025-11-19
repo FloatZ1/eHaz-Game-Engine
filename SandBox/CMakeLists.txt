@@ -17,6 +17,13 @@ target_link_libraries(SandBox PRIVATE eHazEngine)
 # ------------------------------
 # Add a custom run target that uses NVIDIA GPU
 # ------------------------------
+
+target_compile_definitions(eHazEngine PUBLIC
+    eRESOURCES_PATH="${CMAKE_SOURCE_DIR}/SandBox/assets/"
+    eEXTERNAL_LIB_PATH="${CMAKE_SOURCE_DIR}/dependencies/"
+)  
+
+
 add_custom_target(run
     COMMAND env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia $<TARGET_FILE:SandBox>
     DEPENDS SandBox

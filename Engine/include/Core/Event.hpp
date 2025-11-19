@@ -36,9 +36,9 @@ class Event {
 public:
   bool handled = false;
 
-  virtual EventType GetEventType();
+  virtual EventType GetEventType() = 0;
 
-  virtual int GetEventCategories();
+  virtual int GetEventCategories() = 0;
 };
 
 class KeyDownEvent : public Event {

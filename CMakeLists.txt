@@ -15,6 +15,23 @@ set(CMAKE_CXX_STANDARD 20)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
+  add_custom_target(debug
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/Debug
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/Debug
+    COMMENT "Building project in Debug mode"
+)
+
+add_custom_target(release
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Release -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/Release
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/Release
+    COMMENT "Building project in Release mode"
+)
+
+add_custom_target(dist
+    COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=RelWithDebInfo -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/Dist
+    COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/Dist
+    COMMENT "Building project for distribution (RelWithDebInfo)"
+)
 
 
  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")

@@ -6,12 +6,23 @@
 #include "Engine/include/Physics/Physics.hpp"
 #include "LayerStack.hpp"
 #include "Renderer.hpp"
+#include <string>
 namespace eHaz_Core {
+
+struct AppSpec {
+
+  std::string title;
+  bool fullscreen;
+  unsigned int w_width;
+  unsigned int w_height;
+};
 
 class Application {
 
 public:
-  Application();
+  static Application *instance;
+
+  Application(AppSpec spec);
 
   ~Application();
 
@@ -25,13 +36,16 @@ public:
       layerStack.PushUILayer<TLayer>();
   }
 
+  double GetDeltaTime() { return deltaTime; }
+
   void Run();
 
   void Stop();
 
 private:
+  AppSpec spec;
   eHazGraphics::Renderer renderer;
-
+  double deltaTime = 0;
   eHaz::LayerStack layerStack;
 
   eHaz::EventQueue eventQueue;

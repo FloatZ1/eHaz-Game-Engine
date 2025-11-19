@@ -2,8 +2,12 @@
 #include "Core/Layer.hpp"
 
 namespace eHaz_Core {
-
-Application::Application() { renderer.Initialize(); }
+Application *Application::instance = nullptr;
+Application::Application(AppSpec spec) : spec(spec) {
+  renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
+  instance = this;
+  // renderer.p_bufferManager->BeginWritting();
+}
 
 Application::~Application() { renderer.Destroy(); }
 
@@ -11,7 +15,7 @@ void Application::Run() {
 
   Uint64 NOW = SDL_GetPerformanceCounter();
   Uint64 LAST = 0;
-  double deltaTime = 0;
+
   while (renderer.shouldQuit == false) {
     // Calculate delta time
     LAST = NOW;
@@ -34,6 +38,8 @@ void Application::Run() {
     renderer.UpdateRenderer(deltaTime);
 
     layerStack.RenderLayers();
+
+    layerStack.RenderUILayer();
 
     eventQueue.ClearHandledEvents();
   }
