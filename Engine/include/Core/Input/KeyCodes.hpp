@@ -4,13 +4,19 @@
 #include <cstdint>
 namespace eHaz {
 
-// taken straight from https://wiki.libsdl.org/EHAZ3/EHAZ_Keycode
+// taken straight from https://wiki.libsdl.org/SDL3/SDL_Keycode
 
 typedef uint32_t EHAZ_Keycode;
 
 #define EHAZK_EXTENDED_MASK (1u << 29)
 #define EHAZK_SCANCODE_MASK (1u << 30)
-#define EHAZ_SCANCODE_TO_KEYCODE(X) (X | EHAZK_SCANCODE_MASK)
+#define EHAZ_SCANCODE_TO_KEYCODE(X) ((X) | EHAZK_SCANCODE_MASK)
+
+// Check if a keycode is actually a scancode
+#define EHAZ_KEYCODE_IS_SCANCODE(X) (((X) & EHAZK_SCANCODE_MASK) != 0)
+
+// Convert keycode to scancode
+#define EHAZ_KEYCODE_TO_SCANCODE(X) ((X) & ~EHAZK_SCANCODE_MASK)
 #define EHAZK_UNKNOWN 0x00000000u       /**< 0 */
 #define EHAZK_RETURN 0x0000000du        /**< '\r' */
 #define EHAZK_ESCAPE 0x0000001bu        /**< '\x1B' */
@@ -89,24 +95,33 @@ typedef uint32_t EHAZ_Keycode;
 #define EHAZK_PLUSMINUS 0x000000b1u     /**< '\xB1' */
 #define EHAZK_CAPSLOCK                                                         \
   0x40000039u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_CAPSLOCK) */
-#define EHAZK_F1 0x4000003au /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F1)   \
-                              */
-#define EHAZK_F2 0x4000003bu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F2)   \
-                              */
-#define EHAZK_F3 0x4000003cu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F3)   \
-                              */
-#define EHAZK_F4 0x4000003du /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F4)   \
-                              */
-#define EHAZK_F5 0x4000003eu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F5)   \
-                              */
-#define EHAZK_F6 0x4000003fu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F6)   \
-                              */
-#define EHAZK_F7 0x40000040u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F7)   \
-                              */
-#define EHAZK_F8 0x40000041u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F8)   \
-                              */
-#define EHAZK_F9 0x40000042u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F9)   \
-                              */
+#define EHAZK_F1                                                               \
+  0x4000003au /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F1)                  \
+               */
+#define EHAZK_F2                                                               \
+  0x4000003bu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F2)                  \
+               */
+#define EHAZK_F3                                                               \
+  0x4000003cu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F3)                  \
+               */
+#define EHAZK_F4                                                               \
+  0x4000003du /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F4)                  \
+               */
+#define EHAZK_F5                                                               \
+  0x4000003eu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F5)                  \
+               */
+#define EHAZK_F6                                                               \
+  0x4000003fu /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F6)                  \
+               */
+#define EHAZK_F7                                                               \
+  0x40000040u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F7)                  \
+               */
+#define EHAZK_F8                                                               \
+  0x40000041u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F8)                  \
+               */
+#define EHAZK_F9                                                               \
+  0x40000042u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F9)                  \
+               */
 #define EHAZK_F10                                                              \
   0x40000043u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_F10) */
 #define EHAZK_F11                                                              \
@@ -135,8 +150,9 @@ typedef uint32_t EHAZ_Keycode;
   0x40000050u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_LEFT) */
 #define EHAZK_DOWN                                                             \
   0x40000051u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_DOWN) */
-#define EHAZK_UP 0x40000052u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_UP)   \
-                              */
+#define EHAZK_UP                                                               \
+  0x40000052u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_UP)                  \
+               */
 #define EHAZK_NUMLOCKCLEAR                                                     \
   0x40000053u /**< EHAZ_SCANCODE_TO_KEYCODE(EHAZ_SCANCODE_NUMLOCKCLEAR) */
 #define EHAZK_KP_DIVIDE                                                        \

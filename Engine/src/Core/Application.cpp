@@ -21,15 +21,14 @@ void Application::Run() {
     LAST = NOW;
     NOW = SDL_GetPerformanceCounter();
 
-    deltaTime =
-        (double)((NOW - LAST) * 1000 / (double)SDL_GetPerformanceFrequency());
+    deltaTime = (double)((NOW - LAST) / (double)SDL_GetPerformanceFrequency());
 
-    renderer.PollInputEvents();
+    // renderer.PollInputEvents();
 
     // call the eventque with the SDL event
     //************************************
 
-    eventQueue.ProcessSDLEvents();
+    input_system.ProcessEvents(eventQueue);
 
     layerStack.NotifyEvents(eventQueue);
 
@@ -41,7 +40,11 @@ void Application::Run() {
 
     layerStack.RenderUILayer();
 
-    eventQueue.ClearHandledEvents();
+    // eventQueue.ClearHandledEvents();
+
+    eventQueue.Clear();
+
+    eventQueue.ProcessSDLEvents();
   }
 }
 

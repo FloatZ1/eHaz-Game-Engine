@@ -46,7 +46,7 @@ public:
     for (auto &event : events) {
 
       for (auto &layer : m_LayerStack) {
-        layer->OnEvent(event);
+        layer->OnEvent(*event);
       }
     }
   }

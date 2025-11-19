@@ -1,6 +1,7 @@
 #ifndef EHAZ_CORE_APPLICATION_HPP
 #define EHAZ_CORE_APPLICATION_HPP
 
+#include "Core/Input/InputSystem.hpp"
 #include "Engine/include/Core/EventQueue.hpp"
 #include "Engine/include/Core/Layer.hpp"
 #include "Engine/include/Physics/Physics.hpp"
@@ -38,6 +39,8 @@ public:
 
   double GetDeltaTime() { return deltaTime; }
 
+  const eHaz::InputSystem &GetInputSystem() const { return input_system; }
+
   void Run();
 
   void Stop();
@@ -51,6 +54,8 @@ private:
   eHaz::EventQueue eventQueue;
 
   eHaz::PhysicsEngine physics_engine;
+
+  eHaz::InputSystem input_system;
 };
 
 } // namespace eHaz_Core

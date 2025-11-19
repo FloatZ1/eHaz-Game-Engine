@@ -41,7 +41,7 @@ class EditorUILayer : public Layer {
     ImGui_ImplOpenGL3_Init("#version 150");
   }
 
-  void OnEvent(std::unique_ptr<Event> &event) override {}
+  void OnEvent(Event &event) override {}
 
   void OnUpdate(float ts) override {}
   void OnRender() override {

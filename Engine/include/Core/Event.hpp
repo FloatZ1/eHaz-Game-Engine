@@ -18,7 +18,9 @@ enum EventType {
   EVENT_MOUSE_SCROLL = 5,
 
   EVENT_WINDOW_RESIZE = 6,
-  EVENT_APPLICATION_QUIT = 7
+  EVENT_APPLICATION_QUIT = 7,
+  EVENT_WINDOW_UNFOCUSED = 8,
+  EVENT_WINDOW_FOCUSED = 9
 };
 
 enum EventCategory {
@@ -45,7 +47,10 @@ class KeyDownEvent : public Event {
 public:
   EHAZ_Keycode key;
 
-  KeyDownEvent(EHAZ_Keycode key) : key(key) {}
+  bool isRepeat;
+
+  KeyDownEvent(EHAZ_Keycode key, bool isRepeat)
+      : key(key), isRepeat(isRepeat) {}
 
   EventType GetEventType() override { return EventType::EVENT_KEY_DOWN; }
 
@@ -103,12 +108,14 @@ public:
 
 class MouseMoveEvent : public Event {
 public:
-  MouseMoveEvent(const float x, const float y) : m_MouseX(x), m_MouseY(y) {}
+  MouseMoveEvent(const float x, const float y, float relX, float relY)
+      : m_relX(relX), m_relY(relY), m_MouseX(x), m_MouseY(y) {}
 
   float GetX() const { return m_MouseX; }
   float GetY() const { return m_MouseY; }
-
-  float m_MouseX, m_MouseY;
+  float GetRelativeX() const { return m_relX; }
+  float GetRelativeY() const { return m_relY; }
+  float m_MouseX, m_MouseY, m_relX, m_relY;
 
   EventType GetEventType() override { return EventType::EVENT_MOUSE_MOVE; }
 
@@ -149,6 +156,20 @@ public:
   int GetEventCategories() override { return EventCategoryApplication; }
 };
 
+class WindowFocusLostEvent : public Event {
+
+  EventType GetEventType() override {
+    return EventType::EVENT_WINDOW_UNFOCUSED;
+  }
+
+  int GetEventCategories() override { return EventCategoryApplication; }
+};
+class WindowFocusGetEvent : public Event {
+
+  EventType GetEventType() override { return EventType::EVENT_WINDOW_FOCUSED; }
+
+  int GetEventCategories() override { return EventCategoryApplication; }
+};
 class QuitEvent : public Event {
 public:
   EventType GetEventType() override {

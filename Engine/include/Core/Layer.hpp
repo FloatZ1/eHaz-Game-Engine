@@ -13,7 +13,7 @@ public:
 
   virtual void OnCreate() = 0;
 
-  virtual void OnEvent(std::unique_ptr<Event> &event) = 0;
+  virtual void OnEvent(Event &event) = 0;
 
   virtual void OnUpdate(float ts) = 0;
   virtual void OnRender() = 0;

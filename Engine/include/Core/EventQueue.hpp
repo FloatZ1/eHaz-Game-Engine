@@ -3,6 +3,7 @@
 
 #include "Engine/include/Core/Event.hpp"
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_oldnames.h>
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -17,12 +18,24 @@ public:
     m_Events.push_back(std::move(event));
   }
 
+  void Clear() { m_Events.clear(); }
+
   void ProcessSDLEvents() {
 
     SDL_Event events;
 
     while (SDL_PollEvent(&events)) {
       switch (events.type) {
+
+      case SDL_EVENT_WINDOW_FOCUS_GAINED: {
+        push_back(std::make_unique<WindowFocusGetEvent>());
+      } break;
+
+      case SDL_EVENT_WINDOW_EXPOSED || SDL_EVENT_WINDOW_FOCUS_LOST: {
+
+        push_back(std::make_unique<WindowFocusLostEvent>());
+
+      } break;
 
       case SDL_EVENT_QUIT: {
 
@@ -32,7 +45,10 @@ public:
 
       case SDL_EVENT_KEY_DOWN: {
 
-        push_back(std::make_unique<KeyDownEvent>(events.key.key));
+        // if (events.key.repeat)
+
+        push_back(
+            std::make_unique<KeyDownEvent>(events.key.key, events.key.repeat));
       }
 
       break;
@@ -46,7 +62,8 @@ public:
       case SDL_EVENT_MOUSE_MOTION: {
         float xpos = static_cast<float>(events.motion.x);
         float ypos = static_cast<float>(events.motion.y);
-
+        float relX = static_cast<float>(events.motion.xrel);
+        float relY = static_cast<float>(events.motion.yrel);
         /* if (firstMouse) {
            lastX = xpos;
            lastY = ypos;
@@ -60,7 +77,7 @@ public:
          lastX = xpos;
          lastY = ypos;  */
 
-        push_back(std::make_unique<MouseMoveEvent>(xpos, ypos));
+        push_back(std::make_unique<MouseMoveEvent>(xpos, ypos, relX, relY));
       } break;
 
       case SDL_EVENT_MOUSE_WHEEL: {
