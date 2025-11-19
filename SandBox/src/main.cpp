@@ -66,8 +66,8 @@ class AppLayer : public eHaz::Layer {
       SDL_Log("FOCUS CURSOR PRESSED (R)");
     }
 
-    float xoffset = static_cast<float>(input_system.GetMouseRelativeX()) * 0.5f;
-    float yoffset = static_cast<float>(input_system.GetMouseRelativeY()) * 0.5f;
+    float xoffset = static_cast<float>(input_system.GetMouseRelativeX());
+    float yoffset = static_cast<float>(input_system.GetMouseRelativeY());
 
     /*float xoffset = xpos - lastX;
     float yoffset = lastY - ypos;
@@ -78,7 +78,14 @@ class AppLayer : public eHaz::Layer {
 
     // Apply sensitivity
 
-    camera.ProcessMouseMovement(xoffset, yoffset, false);
+    xoffset *= 10;
+
+    yoffset *= 10;
+
+    if (xoffset != lastX && yoffset != lastY)
+      camera.ProcessMouseMovement(xoffset, yoffset, false);
+    lastX = xoffset;
+    lastY = yoffset;
   }
 
   struct camData {
