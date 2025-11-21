@@ -2,6 +2,7 @@
 #define EHAZ_CORE_EVENT_QUEUE
 
 #include "Engine/include/Core/Event.hpp"
+#include "imgui_impl_sdl3.h"
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_oldnames.h>
 #include <algorithm>
@@ -25,6 +26,9 @@ public:
     SDL_Event events;
 
     while (SDL_PollEvent(&events)) {
+
+      ImGui_ImplSDL3_ProcessEvent(&events);
+
       switch (events.type) {
 
       case SDL_EVENT_WINDOW_FOCUS_GAINED: {

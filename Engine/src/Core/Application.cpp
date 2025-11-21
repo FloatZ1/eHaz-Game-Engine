@@ -1,5 +1,6 @@
 #include "Engine/include/Core/Application.hpp"
 #include "Core/Layer.hpp"
+#include <iterator>
 
 namespace eHaz_Core {
 Application *Application::instance = nullptr;
@@ -25,9 +26,6 @@ void Application::Run() {
 
     // renderer.PollInputEvents();
 
-    // call the eventque with the SDL event
-    //************************************
-
     input_system.ProcessEvents(eventQueue);
 
     layerStack.NotifyEvents(eventQueue);
@@ -35,11 +33,11 @@ void Application::Run() {
     layerStack.UpdateLayers(deltaTime);
 
     renderer.UpdateRenderer(deltaTime);
-
+    renderer.SetFrameBuffer(renderer.GetMainFBO());
     layerStack.RenderLayers();
-
+    renderer.DefaultFrameBuffer();
     layerStack.RenderUILayer();
-
+    renderer.SwapBuffers();
     // eventQueue.ClearHandledEvents();
 
     eventQueue.Clear();

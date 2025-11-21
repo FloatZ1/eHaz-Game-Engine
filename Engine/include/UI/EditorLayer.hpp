@@ -1,5 +1,6 @@
 #ifndef EHAZ_EDITOR_UI
 #define EHAZ_EDITOR_UI
+#include "FrameBuffers/FrameBuffer.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl3.h"
@@ -16,6 +17,7 @@ class EditorUILayer : public Layer {
 
   void OnCreate() override {
     // Setup Dear ImGui context
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
@@ -38,12 +40,15 @@ class EditorUILayer : public Layer {
     ImGui_ImplSDL3_InitForOpenGL(
         eHazGraphics::Renderer::r_instance->p_window->GetWindowPtr(),
         eHazGraphics::Renderer::r_instance->p_window->GetOpenGLContext());
-    ImGui_ImplOpenGL3_Init("#version 150");
+    ImGui_ImplOpenGL3_Init("#version 460");
   }
 
   void OnEvent(Event &event) override {}
 
   void OnUpdate(float ts) override {}
+
+  float prevHeight, prevWidth;
+
   void OnRender() override {
 
     // --- Start a new ImGui frame ---
@@ -86,7 +91,22 @@ class EditorUILayer : public Layer {
 
     // --- Panels ---
     ImGui::Begin("Demo Panel");
-    ImGui::Text("Hello from eHaz Engine Editor!");
+
+    ImVec2 size = ImGui::GetContentRegionAvail();
+
+    int newW = std::max(1, (int)size.x);
+    int newH = std::max(1, (int)size.y);
+
+    eHazGraphics::FrameBuffer &mainFBO =
+        eHazGraphics::Renderer::r_instance->GetMainFBO();
+
+    if (mainFBO.GetWidth() != newW || mainFBO.GetHeight() != newH) {
+      mainFBO.Resize(newW, newH);
+    }
+
+    ImGui::Image((void *)(uint64_t)mainFBO.GetColorTextures()[0].GetTextureID(),
+                 ImVec2(mainFBO.GetWidth(), mainFBO.GetHeight()), ImVec2(0, 1),
+                 ImVec2(1, 0));
     ImGui::End();
 
     // Example if you use ImGuizmo:
@@ -95,6 +115,7 @@ class EditorUILayer : public Layer {
     */
 
     // --- Rendering ---
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
