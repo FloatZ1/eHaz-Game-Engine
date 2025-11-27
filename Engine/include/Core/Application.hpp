@@ -7,6 +7,8 @@
 #include "Engine/include/Physics/Physics.hpp"
 #include "LayerStack.hpp"
 #include "Renderer.hpp"
+#include "Scene.hpp"
+#include <entt/entity/entity.hpp>
 #include <string>
 namespace eHaz_Core {
 
@@ -37,6 +39,8 @@ public:
       layerStack.PushUILayer<TLayer>();
   }
 
+  eHaz::Scene &getActiveScene() { return currentScene; }
+
   double GetDeltaTime() { return deltaTime; }
 
   const eHaz::InputSystem &GetInputSystem() const { return input_system; }
@@ -56,6 +60,8 @@ private:
   eHaz::PhysicsEngine physics_engine;
 
   eHaz::InputSystem input_system;
+
+  eHaz::Scene currentScene = eHaz::Scene("default scene");
 };
 
 } // namespace eHaz_Core

@@ -15,6 +15,7 @@
 #include <iterator>
 #include <memory>
 #include <utility>
+
 using namespace eHazGraphics;
 class AppLayer : public eHaz::Layer {
 
@@ -34,38 +35,38 @@ class AppLayer : public eHaz::Layer {
 
     const eHaz::InputSystem &input_system =
         eHaz_Core::Application::instance->GetInputSystem();
-
-    if (input_system.GetKeyDown(EHAZK_W)) {
-      camera.ProcessKeyboard(FORWARD, static_cast<float>(deltaTime));
-      SDL_Log("W KEY PRESSED\n");
-    }
-    if (input_system.GetKeyDown(EHAZK_A)) {
-      camera.ProcessKeyboard(LEFT, static_cast<float>(deltaTime));
-      SDL_Log("A KEY PRESSED\n");
-    }
-    if (input_system.GetKeyDown(EHAZK_S)) {
-      camera.ProcessKeyboard(BACKWARD, static_cast<float>(deltaTime));
-      SDL_Log("S KEY PRESSED\n");
-    }
-    if (input_system.GetKeyDown(EHAZK_D)) {
-      camera.ProcessKeyboard(RIGHT, static_cast<float>(deltaTime));
-      SDL_Log("D KEY PRESSED\n");
-    }
-    if (input_system.GetKeyDown(EHAZK_SPACE)) {
-      camera.ProcessKeyboard(UP, static_cast<float>(deltaTime));
-      SDL_Log("SPACE KEY PRESSED\n");
-    }
-    if (input_system.GetKeyDown(EHAZK_LCTRL)) {
-      camera.ProcessKeyboard(DOWN, static_cast<float>(deltaTime));
-      SDL_Log("CTRL KEY PRESSED\n");
-    }
-
-    if (input_system.GetKeyPressed(EHAZK_R)) {
-      c_window->ToggleMouseCursor();
-
-      SDL_Log("FOCUS CURSOR PRESSED (R)");
-    }
     if (c_window->isCursorLocked()) {
+      if (input_system.GetKeyDown(EHAZK_W)) {
+        camera.ProcessKeyboard(FORWARD, static_cast<float>(deltaTime));
+        SDL_Log("W KEY PRESSED\n");
+      }
+      if (input_system.GetKeyDown(EHAZK_A)) {
+        camera.ProcessKeyboard(LEFT, static_cast<float>(deltaTime));
+        SDL_Log("A KEY PRESSED\n");
+      }
+      if (input_system.GetKeyDown(EHAZK_S)) {
+        camera.ProcessKeyboard(BACKWARD, static_cast<float>(deltaTime));
+        SDL_Log("S KEY PRESSED\n");
+      }
+      if (input_system.GetKeyDown(EHAZK_D)) {
+        camera.ProcessKeyboard(RIGHT, static_cast<float>(deltaTime));
+        SDL_Log("D KEY PRESSED\n");
+      }
+      if (input_system.GetKeyDown(EHAZK_SPACE)) {
+        camera.ProcessKeyboard(UP, static_cast<float>(deltaTime));
+        SDL_Log("SPACE KEY PRESSED\n");
+      }
+      if (input_system.GetKeyDown(EHAZK_LCTRL)) {
+        camera.ProcessKeyboard(DOWN, static_cast<float>(deltaTime));
+        SDL_Log("CTRL KEY PRESSED\n");
+      }
+
+      if (input_system.GetKeyPressed(EHAZK_R)) {
+        c_window->ToggleMouseCursor();
+
+        SDL_Log("FOCUS CURSOR PRESSED (R)");
+      }
+
       float xoffset = static_cast<float>(input_system.GetMouseRelativeX());
       float yoffset = static_cast<float>(input_system.GetMouseRelativeY());
 

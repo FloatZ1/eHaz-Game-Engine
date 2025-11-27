@@ -20,7 +20,9 @@ enum EventType {
   EVENT_WINDOW_RESIZE = 6,
   EVENT_APPLICATION_QUIT = 7,
   EVENT_WINDOW_UNFOCUSED = 8,
-  EVENT_WINDOW_FOCUSED = 9
+  EVENT_WINDOW_FOCUSED = 9,
+  EVENT_REQUEST_RESOURCE = 10,
+  EVENT_FULFILED_REQUESTED_RESOURCE = 11
 };
 
 enum EventCategory {
@@ -30,7 +32,20 @@ enum EventCategory {
   EventCategoryInput = BIT(1),
   EventCategoryKeyboard = BIT(2),
   EventCategoryMouse = BIT(3),
-  EventCategoryMouseButton = BIT(4)
+  EventCategoryMouseButton = BIT(4),
+  EventCategoryResource = BIT(5)
+
+};
+
+// TODO: make it so that the Renderer supports calling functions from other
+// threads, with locks and decide on a return type for the event
+enum ResourceType {
+
+  AnimatedModel = 0,
+  Model = 1,
+  Shader = 2,
+  Material = 3,
+  Animation = 4
 
 };
 
@@ -41,6 +56,26 @@ public:
   virtual EventType GetEventType() = 0;
 
   virtual int GetEventCategories() = 0;
+};
+
+class RequestResourceEvent : public Event {
+
+  int requestID;
+  EventType GetEventType() override {
+    return EventType::EVENT_REQUEST_RESOURCE;
+  }
+
+  int GetEventCategories() override { return EventCategoryResource; }
+};
+
+class FulfilResourceEvent : public Event {
+
+  int requestID;
+  EventType GetEventType() override {
+    return EventType::EVENT_FULFILED_REQUESTED_RESOURCE;
+  }
+
+  int GetEventCategories() override { return EventCategoryResource; }
 };
 
 class KeyDownEvent : public Event {

@@ -15,9 +15,12 @@ public:
   template <typename TLayer>
     requires(std::is_base_of_v<Layer, TLayer>)
   void PushUILayer() {
-    int wtf;
-    m_LayerStack.insert(m_LayerStack.begin(), std::make_unique<TLayer>());
-    m_LayerStack[0]->OnCreate();
+    // int wtf;
+    // m_LayerStack.insert(m_LayerStack.begin(), std::make_unique<TLayer>());
+    // m_LayerStack[0]->OnCreate();
+
+    m_UILayerStack.insert(m_UILayerStack.begin(), std::make_unique<TLayer>());
+    m_UILayerStack[0]->OnCreate();
   }
   template <typename TLayer>
     requires(std::is_base_of_v<Layer, TLayer>)
@@ -33,7 +36,11 @@ public:
       layer->OnUpdate(ts);
     }
   }
-  void RenderUILayer() { m_LayerStack[0]->OnRender(); }
+  void RenderUILayer() {
+    for (auto &layer : m_UILayerStack) {
+      layer->OnRender();
+    }
+  }
   void RenderLayers() {
 
     for (auto &layer : m_LayerStack) {
@@ -52,6 +59,7 @@ public:
   }
 
 private:
+  std::vector<std::unique_ptr<Layer>> m_UILayerStack;
   std::vector<std::unique_ptr<Layer>> m_LayerStack;
 };
 

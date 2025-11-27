@@ -4,6 +4,9 @@
 #set(CMAKE_CXX_STANDARD 20)
 #set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+
+
 # (optional) compiler warnings, settings, etc.
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic)
@@ -17,6 +20,18 @@ add_compile_definitions(PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
 # ────────────────────────────────────────────────
 add_subdirectory(dependencies/EnvHaz/EnvHaz-Graphics/lib/)
 
+
+ include(FetchContent)
+ set(CMAKE_C_COMPILER /usr/bin/clang CACHE STRING "" FORCE)
+set(CMAKE_CXX_COMPILER /usr/bin/clang++ CACHE STRING "" FORCE)
+
+FetchContent_Declare(
+    EnTT
+    GIT_REPOSITORY https://github.com/skypjack/entt.git
+    GIT_TAG v3.12.2
+)
+
+ FetchContent_MakeAvailable(EnTT)
 # ────────────────────────────────────────────────
 # Build eHazEngine itself
 # ────────────────────────────────────────────────
@@ -32,6 +47,8 @@ target_include_directories(eHazEngine
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
          ${CMAKE_CURRENT_SOURCE_DIR}/include/UI/ImGui
+         ${CMAKE_CURRENT_SOURCE_DIR}/include/Scene/
+         ${CMAKE_CURRENT_SOURCE_DIR}/include/UI/ 
 )
 
 # ────────────────────────────────────────────────
@@ -39,4 +56,8 @@ target_include_directories(eHazEngine
 # ────────────────────────────────────────────────
 target_link_libraries(eHazEngine
     PUBLIC EnvHazGraphics
+    PUBLIC EnTT::EnTT
 )
+
+
+

@@ -7,6 +7,9 @@ Application *Application::instance = nullptr;
 Application::Application(AppSpec spec) : spec(spec) {
   renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
   instance = this;
+
+  currentScene.AddGameObject("root");
+
   // renderer.p_bufferManager->BeginWritting();
 }
 
@@ -44,6 +47,8 @@ void Application::Run() {
 
     eventQueue.ProcessSDLEvents();
   }
+
+  renderer.Destroy();
 }
 
 void Application::Stop() { renderer.shouldQuit = true; }
