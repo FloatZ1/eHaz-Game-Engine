@@ -6,10 +6,20 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entity/registry.hpp"
+#include "glm/fwd.hpp"
 #include <vector>
 namespace eHaz {
 
 struct Scene {
+
+public:
+  struct PendingAction {
+    enum Type { Delete, Create, Rename } type;
+    uint32_t nodeID;
+
+    std::string newName;
+    uint32_t parrentID;
+  };
 
   std::string sceneName;
 
@@ -47,6 +57,30 @@ struct Scene {
     scene_graph.GetObject(index).isStatic = value;
   }
 
+  void QueueAction(PendingAction action) { pendingActions.push_back(action); }
+
+  void ExecutePendingActions() {
+    for (PendingAction &act : pendingActions) {
+
+      switch (act.type) {
+
+      case PendingAction::Delete: {
+        RemoveGameObject(act.nodeID);
+      } break;
+      case PendingAction::Create: {
+        int child = AddGameObject(act.newName, act.nodeID);
+        scene_graph.nodes[act.nodeID]->children.push_back(child);
+      } break;
+      case PendingAction::Rename: {
+
+        scene_graph.nodes[act.nodeID]->name = act.newName;
+
+      } break;
+      }
+    }
+    pendingActions.clear();
+  }
+
   void UpdateWorldTransforms();
 
   void UpdateWorldTransformsRecursive(GameObject &node);
@@ -56,6 +90,9 @@ struct Scene {
   void OnFixedUpdate(float deltaTime);
 
   void OnCreate();
+
+private:
+  std::vector<PendingAction> pendingActions;
 };
 
 } // namespace eHaz

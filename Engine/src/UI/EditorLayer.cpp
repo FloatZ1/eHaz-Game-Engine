@@ -1,11 +1,15 @@
 #include "UI/EditorLayer.hpp"
 #include "Core/Application.hpp"
 #include "GameObject.hpp"
+#include "Scene-graph.hpp"
+#include "Scene.hpp"
 #include "imgui.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
 #include <cstdint>
+#include <cstring>
 #include <memory>
+#include <string>
 
 namespace eHaz {
 
@@ -96,82 +100,89 @@ void EditorUILayer::OnRender() {
     SDL_GL_MakeCurrent(backup_window, backup_context);
   }
 }
+static char renameBuffer[128] = {};
 
+bool isRenamed = false;
+int renameTarget = UINT32_MAX;
 void DrawPopUpSceneH(Scene &scene, uint32_t nodeID) {
 
   int i = nodeID;
 
-  auto &sceneGraph = scene.scene_graph;
+  SceneGraph &sceneGraph = scene.scene_graph;
 
   if (ImGui::BeginPopupContextItem()) {
     if (ImGui::MenuItem("Delete"))
-      scene.RemoveGameObject(sceneGraph.nodes[i]->index, false);
+      if (sceneGraph.nodes[nodeID])
+        // scene.RemoveGameObject(sceneGraph.nodes[i]->index, false);
+        scene.QueueAction({Scene::PendingAction::Type::Delete, nodeID, ""});
     if (ImGui::MenuItem("Rename")) {
-      static char renameBuffer[128] = {};
 
-      ImGui::InputText("New name", renameBuffer, 128);
-      sceneGraph.nodes[i]->name = renameBuffer;
+      renameTarget = nodeID;
+      isRenamed = true;
+      // if (ImGui::InputText("New name", renameBuffer, 128)) {
+      //  scene.QueueAction(
+      //     {Scene::PendingAction::Type::Rename, nodeID, renameBuffer});
+      // }
     }
     if (ImGui::MenuItem("Create empty object")) {
+      if (sceneGraph.nodes[nodeID]) {
+        char itoa[128];
+        std::string name(" GameObjecto_");
+        name += SDL_itoa(scene.scene_graph.nodes.size(), itoa, 10);
 
-      char itoa[128];
-      std::string name(" GameObjecto");
-      name += SDL_itoa(scene.scene_graph.nodes.size(), itoa, 10);
-      int child = scene.AddGameObject(name, sceneGraph.nodes[i]->index);
-      scene.scene_graph.nodes[i]->children.push_back(child);
+        // sceneGraph = scene.scene_graph;
+        scene.QueueAction({Scene::PendingAction::Type::Create, nodeID, name});
+        // int child = scene.AddGameObject(name, sceneGraph.nodes[i]->index);
+        // scene.scene_graph.nodes[i]->children.push_back(child);
+      }
     }
     ImGui::EndPopup();
   }
 }
-
-/*bool DrawSceneNode(Scene &scene, uint32_t nodeID, int &selectedNode) {
-
-  auto &sceneGraph = scene.scene_graph;
-
-  int i = nodeID;
-  ImGuiTreeNodeFlags flag =
-      ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_DrawLinesToNodes;
-  if (sceneGraph.nodes[i]->children.empty())
-    flag |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
-  bool opened = ImGui::TreeNodeEx(sceneGraph.nodes[i]->name.c_str(), flag);
-
-  if (ImGui::IsItemClicked())
-    selectedNode = sceneGraph.nodes[i]->index;
-
-  DrawPopUpSceneH(scene, i);
-
-  if (opened && !(flag & ImGuiTreeNodeFlags_NoTreePushOnOpen))
-    ImGui::TreePop();
-
-  return opened;
-}  */
 
 void DrawNode(eHaz::Scene &scene, uint32_t nodeIndex, uint32_t &selectedNode) {
   std::unique_ptr<eHaz::GameObject> &node = scene.scene_graph.nodes[nodeIndex];
   if (!node)
     return;
   ImGuiTreeNodeFlags flags =
-      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+      ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_OpenOnDoubleClick |
+      ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_DrawLinesToNodes;
 
   if (node->children.empty())
     flags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen;
 
-  // Is this node selected?
   if (selectedNode == nodeIndex)
     flags |= ImGuiTreeNodeFlags_Selected;
-  // ImGui::Checkbox("##visible", &node->isVisible); // note hidden label!
-  // ImGui::SameLine();
+
   bool opened = ImGui::TreeNodeEx((void *)(intptr_t)nodeIndex, // unique ID
                                   flags, "%s", node->name.c_str());
 
-  // Selection
   if (ImGui::IsItemClicked())
     selectedNode = nodeIndex;
 
-  // Right-click popup
-  DrawPopUpSceneH(scene, nodeIndex);
+  if (opened) {
+    DrawPopUpSceneH(scene, nodeIndex);
+  }
 
-  // Recurse into children
+  ImGui::SameLine(ImGui::GetWindowWidth() - 40);
+  ImGui::Checkbox(("## visible" + std::to_string(nodeIndex)).c_str(),
+                  &node->isVisible);
+
+  if (isRenamed && nodeIndex == renameTarget) {
+    ImGui::SetKeyboardFocusHere();
+    memset(renameBuffer, 0, sizeof(renameBuffer));
+    strncpy(renameBuffer, node->name.c_str(), node->name.size());
+    if (ImGui::InputText("##rename", renameBuffer, sizeof(renameBuffer),
+                         ImGuiInputTextFlags_EnterReturnsTrue)) {
+
+      scene.QueueAction(
+          {Scene::PendingAction::Rename, nodeIndex, renameBuffer});
+      renameTarget = UINT32_MAX;
+      isRenamed = false;
+    }
+  }
+
+  //  Recurse into children
   if (opened && !(flags & ImGuiTreeNodeFlags_NoTreePushOnOpen)) {
     if (node) {
       for (uint32_t childIndex : node->children) {

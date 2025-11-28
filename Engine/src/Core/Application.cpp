@@ -35,6 +35,8 @@ void Application::Run() {
 
     layerStack.UpdateLayers(deltaTime);
 
+    currentScene.OnUpdate(deltaTime);
+
     renderer.UpdateRenderer(deltaTime);
     renderer.SetFrameBuffer(renderer.GetMainFBO());
     layerStack.RenderLayers();

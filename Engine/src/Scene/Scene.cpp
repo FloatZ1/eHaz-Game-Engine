@@ -103,4 +103,6 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
   }
 }
 
+void Scene::OnUpdate(float deltaTime) { ExecutePendingActions(); }
+
 } // namespace eHaz
