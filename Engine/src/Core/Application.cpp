@@ -1,10 +1,12 @@
 #include "Engine/include/Core/Application.hpp"
+#include "Components.hpp"
 #include "Core/Layer.hpp"
 #include <iterator>
-
 namespace eHaz_Core {
 Application *Application::instance = nullptr;
 Application::Application(AppSpec spec) : spec(spec) {
+
+  eHaz::register_components();
   renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
   instance = this;
 

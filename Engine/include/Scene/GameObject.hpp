@@ -38,6 +38,8 @@ struct GameObject {
 
   entt::entity entity = entt::null;
 
+  uint32_t componentMask;
+
   std::string name = "GameObject";
   bool alive = true;
   bool isStatic = false;
@@ -46,8 +48,18 @@ struct GameObject {
 
   GameObject(uint32_t idx, entt::entity e) : index(idx), entity(e) {}
 
-  // ------------- COMPONENT ACCESS -------------
+  // ------------- COMPONENT State -------------
+  inline void AddComponentFlag(ComponentID flag) {
+    componentMask |= static_cast<uint32_t>(flag);
+  }
 
+  inline void RemoveComponentFlag(ComponentID flag) {
+    componentMask &= ~static_cast<uint32_t>(flag);
+  }
+
+  inline bool HasComponentFlag(ComponentID flag) {
+    return (componentMask & static_cast<uint32_t>(flag)) != 0;
+  }
   // ------------- HIERARCHY ACCESS -------------
   void SetParent(uint32_t newParent);
   std::vector<uint32_t> GetChildren() const { return children; }

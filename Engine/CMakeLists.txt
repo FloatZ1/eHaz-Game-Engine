@@ -32,6 +32,12 @@ FetchContent_Declare(
 )
 
  FetchContent_MakeAvailable(EnTT)
+
+ find_package(Boost REQUIRED)
+
+
+
+
 # ────────────────────────────────────────────────
 # Build eHazEngine itself
 # ────────────────────────────────────────────────
@@ -49,6 +55,8 @@ target_include_directories(eHazEngine
          ${CMAKE_CURRENT_SOURCE_DIR}/include/UI/ImGui
          ${CMAKE_CURRENT_SOURCE_DIR}/include/Scene/
          ${CMAKE_CURRENT_SOURCE_DIR}/include/UI/ 
+         ${CMAKE_CURRENT_SOURCE_DIR}/include/Utility/
+          ${Boost_INCLUDE_DIRS}
 )
 
 # ────────────────────────────────────────────────

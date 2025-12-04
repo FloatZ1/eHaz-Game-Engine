@@ -1,13 +1,18 @@
 #include "UI/EditorLayer.hpp"
+#include "Components.hpp"
 #include "Core/Application.hpp"
+#include "Core/Event.hpp"
 #include "GameObject.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
+#include "glm/fwd.hpp"
+#include "glm/gtc/type_ptr.hpp"
 #include "imgui.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
 #include <cstdint>
 #include <cstring>
+#include <glm/glm.hpp>
 #include <memory>
 #include <string>
 
@@ -86,7 +91,7 @@ void EditorUILayer::OnRender() {
   // --- Panels ---
   DrawGameViewPort();
   DrawSceneHierarchy(); // after deletion something happens here that causes the
-                        // segfault
+  DrawInspectWindow();  // segfault
 
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -202,6 +207,19 @@ void EditorUILayer::DrawSceneHierarchy() {
 
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
 
+  float buttonWidth = 25.0f; // width of the button
+  float avail = ImGui::GetContentRegionAvail().x;
+  ImGui::SameLine(avail - buttonWidth);
+
+  if (ImGui::Button("+", ImVec2(buttonWidth, 0))) {
+    char itoa[128];
+    std::string name(" GameObjecto_");
+    name += SDL_itoa(scene.scene_graph.nodes.size(), itoa, 10);
+
+    // sceneGraph = scene.scene_graph;
+    scene.QueueAction({Scene::PendingAction::Type::Create, 0, name});
+  }
+
   for (uint32_t i = 0; i < scene.scene_graph.nodes.size(); i++) {
     auto &sceneGraph = scene.scene_graph;
 
@@ -210,6 +228,99 @@ void EditorUILayer::DrawSceneHierarchy() {
 
     if (sceneGraph.nodes[i]->parent == UINT32_MAX)
       DrawNode(scene, i, selectedNode);
+  }
+
+  ImGui::End();
+}
+
+glm::vec3 quatToEuler(const glm::quat &q) {
+  return glm::eulerAngles(q); // Returns vec3(pitch, yaw, roll) in radians
+}
+
+glm::quat eulerToQuat(const glm::vec3 &euler) {
+  return glm::quat(euler); // Expects radians
+}
+
+void DrawTransformComponentMenu(uint selectedNode,
+                                std::unique_ptr<GameObject> &node,
+                                Scene &scene) {
+
+  if (ImGui::CollapsingHeader(("Transform "))) {
+    TransformComponent &transform =
+        scene.GetComponent<TransformComponent>(selectedNode);
+    {
+      ImGui::SeparatorText("Local");
+      ImGui::DragFloat3("Position", glm::value_ptr(transform.localPosition));
+
+      ImGui::DragFloat3("Scale", glm::value_ptr(transform.localScale));
+      glm::quat eulerRotation = transform.localRotation;
+
+      // Convert to Euler angles for editing
+      glm::vec3 euler = quatToEuler(eulerRotation);
+
+      // Convert to degrees (optional, more user-friendly)
+      euler = glm::degrees(euler);
+
+      // Edit in ImGui
+      if (ImGui::DragFloat3("Rotation", &euler.x, 1.0f)) {
+        // Convert back to radians
+        glm::vec3 eulerRad = glm::radians(euler);
+        // Convert back to quaternion
+        transform.localRotation = eulerToQuat(eulerRad);
+      }
+    }
+
+    bool disabled;
+    if (node->parent != 0 && node->parent != UINT32_MAX)
+      disabled = true;
+    else
+      disabled = false;
+
+    ImGui::BeginDisabled(disabled);
+
+    ImGui::SeparatorText("World");
+    ImGui::DragFloat3("Position##world",
+                      glm::value_ptr(transform.worldPosition));
+
+    ImGui::DragFloat3("Scale##world", glm::value_ptr(transform.worldScale));
+    glm::quat eulerRotation = transform.worldRotation;
+
+    // Convert to Euler angles for editing
+    glm::vec3 euler = quatToEuler(eulerRotation);
+
+    // Convert to degrees (optional, more user-friendly)
+    euler = glm::degrees(euler);
+
+    // Edit in ImGui
+    if (ImGui::DragFloat3("Rotation##world", &euler.x, 1.0f)) {
+      // Convert back to radians
+      glm::vec3 eulerRad = glm::radians(euler);
+      // Convert back to quaternion
+      transform.worldRotation = eulerToQuat(eulerRad);
+    }
+
+    ImGui::EndDisabled();
+  }
+}
+
+void DrawModelComponentMenu(uint selectedNode,
+                            std::unique_ptr<GameObject> &node, Scene &scene) {
+
+  ModelComponent &modelComponent =
+      scene.GetComponent<ModelComponent>(selectedNode);
+
+  if (ImGui::CollapsingHeader("Model")) {
+  }
+}
+
+void EditorUILayer::DrawInspectWindow() {
+  auto &scene = eHaz_Core::Application::instance->getActiveScene();
+  auto &sceneGraph = scene.scene_graph;
+  ImGui::Begin(("Inspect window"));
+  auto &node = sceneGraph.nodes[selectedNode];
+
+  if (node->HasComponentFlag(ComponentID::Transform)) {
+    DrawTransformComponentMenu(selectedNode, node, scene);
   }
 
   ImGui::End();

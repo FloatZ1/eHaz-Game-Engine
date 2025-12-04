@@ -7,6 +7,7 @@
 #include "DataStructs.hpp"
 #include "Engine/include/Core/Application.hpp"
 #include "Engine/include/UI/EditorLayer.hpp"
+#include "MeshManager.hpp"
 #include "Renderer.hpp"
 #include "camera.hpp"
 #include "glm/ext/matrix_transform.hpp"
@@ -35,6 +36,13 @@ class AppLayer : public eHaz::Layer {
 
     const eHaz::InputSystem &input_system =
         eHaz_Core::Application::instance->GetInputSystem();
+
+    if (input_system.GetKeyPressed(EHAZK_R)) {
+      c_window->ToggleMouseCursor();
+
+      SDL_Log("FOCUS CURSOR PRESSED (R)");
+    }
+
     if (c_window->isCursorLocked()) {
       if (input_system.GetKeyDown(EHAZK_W)) {
         camera.ProcessKeyboard(FORWARD, static_cast<float>(deltaTime));
@@ -61,12 +69,6 @@ class AppLayer : public eHaz::Layer {
         SDL_Log("CTRL KEY PRESSED\n");
       }
 
-      if (input_system.GetKeyPressed(EHAZK_R)) {
-        c_window->ToggleMouseCursor();
-
-        SDL_Log("FOCUS CURSOR PRESSED (R)");
-      }
-
       float xoffset = static_cast<float>(input_system.GetMouseRelativeX());
       float yoffset = static_cast<float>(input_system.GetMouseRelativeY());
 
@@ -89,6 +91,8 @@ class AppLayer : public eHaz::Layer {
       lastY = yoffset;
     }
   }
+
+  std::shared_ptr<Model> model;
 
   struct camData {
     glm::mat4 view = glm::mat4(1.0f);
@@ -120,7 +124,8 @@ class AppLayer : public eHaz::Layer {
         Renderer::p_materialManager->LoadTexture(eRESOURCES_PATH "rizz.png");
 
     unsigned int materialID = Renderer::p_materialManager->CreatePBRMaterial(
-        AlbedoTexture, AlbedoTexture, AlbedoTexture, AlbedoTexture);
+        AlbedoTexture, AlbedoTexture, AlbedoTexture, AlbedoTexture,
+        "inthepisser");
 
     auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
     // bullshit hack
@@ -135,14 +140,22 @@ class AppLayer : public eHaz::Layer {
 
     SDL_Log("\n\n\n" eRESOURCES_PATH "\n\n\n");
     std::string path = eRESOURCES_PATH "boombox.glb";
-    auto model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
+    model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
 
-    model->SetPositionMat4(
-        glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+    //  model->SetPositionMat4(
+    //     glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+
+    glm::mat4 pos =
+        glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
     Renderer::p_meshManager->SetModelShader(model, shader);
 
-    Renderer::r_instance->SubmitStaticModel(model,
+    Renderer::r_instance->SubmitStaticModel(model, pos,
+                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
+
+    pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
+
+    Renderer::r_instance->SubmitStaticModel(model, pos,
                                             TypeFlags::BUFFER_STATIC_MESH_DATA);
   }
 
@@ -171,7 +184,16 @@ class AppLayer : public eHaz::Layer {
         materials, mat->first.data(), mat->first.size() * sizeof(PBRMaterial));
   }
   void OnRender() override {
+    glm::mat4 pos =
+        glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
+    Renderer::r_instance->SubmitStaticModel(model, pos,
+                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
+
+    pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
+
+    Renderer::r_instance->SubmitStaticModel(model, pos,
+                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
     // Renderer::r_instance->RenderFrame(std::vector<DrawRange> DrawOrder)
     auto ranges = Renderer::p_renderQueue->SubmitRenderCommands();
 

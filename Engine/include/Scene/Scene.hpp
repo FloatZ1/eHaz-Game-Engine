@@ -1,12 +1,16 @@
 #ifndef EHAZ_SCENE_HPP
 #define EHAZ_SCENE_HPP
 
+#include "Components.hpp"
 #include "GameObject.hpp"
 #include "Scene-graph.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entity/registry.hpp"
+#include "entt/meta/meta.hpp"
+#include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
+#include <functional>
 #include <vector>
 namespace eHaz {
 
@@ -32,23 +36,46 @@ public:
                     entt::entity entity = entt::null);
   void RemoveGameObject(uint32_t index, bool recursive = true);
 
-  template <typename T> T *TryGetComponent(entt::entity entity) {
+  template <typename T> T *TryGetComponent(uint objectID) {
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
     return m_registry.any_of<T>(entity) ? &m_registry.get<T>(entity) : nullptr;
   }
-  template <typename T, typename... Args>
-  T &AddComponent(entt::entity entity, Args &&...args) {
-    return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
-  }
 
-  template <typename T> T &GetComponent(entt::entity entity) {
-    return m_registry.get<T>(entity);
-  }
+  template <typename T> bool HasComponent(uint objectID) const {
 
-  template <typename T> bool HasComponent(entt::entity entity) const {
+    // entt::meta_type m_type = entt::resolve<T>();
+
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
     return m_registry.any_of<T>(entity);
   }
 
-  template <typename T> void RemoveComponent(entt::entity entity) {
+  template <typename T> T &GetComponent(uint objectID) {
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
+    return m_registry.get<T>(entity);
+  }
+
+  template <typename T, typename... Args>
+  T &AddComponent(uint objectID, Args &&...args) {
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
+
+    entt::meta_type m_type = entt::resolve<T>();
+    if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()])) {
+      scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
+
+      return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+    }
+
+    return GetComponent<T>(objectID);
+  }
+
+  // FOR USE IN EDITOR ONLY
+  template <typename T> void RemoveComponent(uint objectID) {
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
+
+    entt::meta_type m_type = entt::resolve<T>();
+
+    scene_graph.nodes[objectID]->RemoveComponentFlag(HashToID[m_type.id()]);
+
     m_registry.remove<T>(entity);
   }
   template <typename T> std::vector<GameObject *> GetObjectsWithComponent();

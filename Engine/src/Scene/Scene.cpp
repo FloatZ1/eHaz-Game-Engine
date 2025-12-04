@@ -1,5 +1,6 @@
 #include "Scene.hpp"
 #include "Animation/AnimatedModelManager.hpp"
+#include "Components.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 
@@ -26,6 +27,8 @@ int Scene::AddGameObject(const std::string &name, uint32_t parent,
   newObj.name = name;
   newObj.entity = entity;
   newObj.parent = parent;
+
+  m_registry.emplace<TransformComponent>(entity);
 
   uint32_t index = scene_graph.AddNode(std::move(newObj));
 
@@ -66,13 +69,13 @@ void Scene::UpdateWorldTransforms() {
 }
 
 void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
-  auto *transform = TryGetComponent<TransformComponent>(node.entity);
+  auto *transform = TryGetComponent<TransformComponent>(node.index);
   if (!transform)
     return;
 
   if (node.parent != UINT32_MAX) {
     auto *parentTransform = TryGetComponent<TransformComponent>(
-        scene_graph.GetObject(node.parent).entity);
+        scene_graph.GetObject(node.parent).index);
     if (parentTransform) {
       // Combine parent world with local
       transform->worldScale =
