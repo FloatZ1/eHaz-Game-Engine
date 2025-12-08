@@ -11,6 +11,7 @@
 #include "Renderer.hpp"
 #include "camera.hpp"
 #include "glm/ext/matrix_transform.hpp"
+#include "imgui.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_oldnames.h>
 #include <iterator>
@@ -140,7 +141,13 @@ class AppLayer : public eHaz::Layer {
 
     SDL_Log("\n\n\n" eRESOURCES_PATH "\n\n\n");
     std::string path = eRESOURCES_PATH "boombox.glb";
-    model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
+
+    ModelID mdlID = eHazGraphics::Renderer::p_meshManager->LoadHazModel(
+        eRESOURCES_PATH "test.hzmdl");
+
+    model = eHazGraphics::Renderer::p_meshManager->GetModel(mdlID);
+
+    // model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
 
     //  model->SetPositionMat4(
     //     glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
@@ -157,6 +164,9 @@ class AppLayer : public eHaz::Layer {
 
     Renderer::r_instance->SubmitStaticModel(model, pos,
                                             TypeFlags::BUFFER_STATIC_MESH_DATA);
+
+    // Renderer::p_meshManager->ExportHazModel(eRESOURCES_PATH "test.hzmdl",
+    //                                         model->GetID());
   }
 
   void OnEvent(eHaz::Event &event) override {

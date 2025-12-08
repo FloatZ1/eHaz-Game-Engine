@@ -14,7 +14,7 @@ set(CMAKE_C_COMPILER clang)
 set(CMAKE_CXX_STANDARD 20)
  set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-
+ add_compile_options(-w)
   add_custom_target(debug
     COMMAND ${CMAKE_COMMAND} -DCMAKE_BUILD_TYPE=Debug -S ${CMAKE_SOURCE_DIR} -B ${CMAKE_BINARY_DIR}/Debug
     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/Debug
