@@ -100,8 +100,8 @@ class AppLayer : public eHaz::Layer {
     glm::mat4 projection = glm::mat4(1.0f);
   };
 
-  BufferRange camDt;
-  BufferRange materials;
+  SBufferRange camDt;
+  SBufferRange materials;
   std::pair<const std::vector<PBRMaterial> &, TypeFlags> *mat;
   // boiler plate above for testing
   void OnCreate() override {
@@ -142,15 +142,12 @@ class AppLayer : public eHaz::Layer {
     SDL_Log("\n\n\n" eRESOURCES_PATH "\n\n\n");
     std::string path = eRESOURCES_PATH "boombox.glb";
 
-    ModelID mdlID = eHazGraphics::Renderer::p_meshManager->LoadHazModel(
-        eRESOURCES_PATH "test.hzmdl");
+    // ModelID mdlID = eHazGraphics::Renderer::p_meshManager->LoadHazModel(
+    //     eRESOURCES_PATH "test.hzmdl");
 
-    model = eHazGraphics::Renderer::p_meshManager->GetModel(mdlID);
+    // model = eHazGraphics::Renderer::p_meshManager->GetModel(mdlID);
 
-    // model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
-
-    //  model->SetPositionMat4(
-    //     glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)));
+    model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
 
     glm::mat4 pos =
         glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
