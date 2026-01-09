@@ -214,7 +214,7 @@ int main() {
 
   eHaz_Core::AppSpec spec;
   spec.fullscreen = false;
-  spec.title = "fuck";
+  spec.title = "eHaz Game Engine";
   spec.w_width = 1280;
   spec.w_height = 720;
   eHaz_Core::Application app(spec);
