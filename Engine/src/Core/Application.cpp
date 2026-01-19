@@ -40,16 +40,21 @@ void Application::Run() {
     currentScene.OnUpdate(deltaTime);
 
     renderer.UpdateRenderer(deltaTime);
-    renderer.SetFrameBuffer(renderer.GetMainFBO());
-    layerStack.RenderLayers();
-    renderer.DefaultFrameBuffer();
-    layerStack.RenderUILayer();
+    if (m_bEditorMode) {
+      renderer.SetFrameBuffer(renderer.GetMainFBO());
+      layerStack.RenderLayers();
+      renderer.DefaultFrameBuffer();
+
+      layerStack.RenderUILayer();
+    } else {
+      layerStack.RenderLayers();
+    }
     renderer.SwapBuffers();
     // eventQueue.ClearHandledEvents();
 
     eventQueue.Clear();
 
-    eventQueue.ProcessSDLEvents();
+    eventQueue.ProcessSDLEvents(m_bEditorMode);
   }
 
   renderer.Destroy();

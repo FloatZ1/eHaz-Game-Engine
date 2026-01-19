@@ -1,8 +1,12 @@
 #ifndef EHAZ_CORE_EVENT_HPP
 #define EHAZ_CORE_EVENT_HPP
 
+#include "Core/AssetSystem/Asset.hpp"
 #include "Input/KeyCodes.hpp"
 #include "Input/MouseCodes.hpp"
+#include <filesystem>
+#include <string>
+#include <vector>
 
 #define BIT(x) (1 << x)
 
@@ -22,7 +26,9 @@ enum EventType {
   EVENT_WINDOW_UNFOCUSED = 8,
   EVENT_WINDOW_FOCUSED = 9,
   EVENT_REQUEST_RESOURCE = 10,
-  EVENT_FULFILED_REQUESTED_RESOURCE = 11
+  EVENT_FULFILED_REQUESTED_RESOURCE = 11,
+  EVENT_REQUEST_AVAILABLE_RESOURCES = 12,
+  EVENT_FULFILED_REQUESTED_AVAILABLE_RESOURCES = 13
 };
 
 enum EventCategory {
@@ -41,7 +47,7 @@ enum EventCategory {
 // threads, with locks and decide on a return type for the event
 enum ResourceType {
 
-  AnimatedModel = 0,
+  Texture = 0,
   Model = 1,
   Shader = 2,
   Material = 3,
@@ -58,9 +64,40 @@ public:
   virtual int GetEventCategories() = 0;
 };
 
-class RequestResourceEvent : public Event {
+struct ResourceInfo {
 
+  std::string name;
+  std::string path;
+  ResourceType type;
+};
+class RequestResourceListEvent : public Event {
+public:
+  ResourceType resourceType;
+  RequestResourceListEvent(ResourceType p_type) : resourceType(p_type) {}
+  EventType GetEventType() override {
+    return EventType::EVENT_REQUEST_AVAILABLE_RESOURCES;
+  }
+
+  int GetEventCategories() override { return EventCategoryResource; }
+};
+
+class FulfilRequestResourceListEvent : public Event {
+public:
+  std::vector<ResourceInfo> availableResources;
+  FulfilRequestResourceListEvent(std::vector<ResourceInfo> p_info)
+      : availableResources(p_info) {};
+  EventType GetEventType() override {
+    return EventType::EVENT_FULFILED_REQUESTED_AVAILABLE_RESOURCES;
+  }
+
+  int GetEventCategories() override { return EventCategoryResource; }
+};
+
+class RequestResourceEvent : public Event {
+public:
   int requestID;
+  ResourceType resourceType;
+  std::string resourcePath;
   EventType GetEventType() override {
     return EventType::EVENT_REQUEST_RESOURCE;
   }
@@ -69,8 +106,10 @@ class RequestResourceEvent : public Event {
 };
 
 class FulfilResourceEvent : public Event {
-
+public:
   int requestID;
+  ResourceType resourceType;
+  SAssetHandle resourceHandle;
   EventType GetEventType() override {
     return EventType::EVENT_FULFILED_REQUESTED_RESOURCE;
   }

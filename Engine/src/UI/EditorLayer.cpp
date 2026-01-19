@@ -1,10 +1,13 @@
 #include "UI/EditorLayer.hpp"
 #include "Components.hpp"
 #include "Core/Application.hpp"
+#include "Core/AssetSystem/Asset.hpp"
+#include "Core/AssetSystem/AssetSystem.hpp"
 #include "Core/Event.hpp"
 #include "GameObject.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
+#include "entt/core/fwd.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "imgui.h"
@@ -15,9 +18,16 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace eHaz {
-
+void AlignForWidth(float width, float alignment = 0.5f) {
+  ImGuiStyle &style = ImGui::GetStyle();
+  float avail = ImGui::GetContentRegionAvail().x;
+  float off = (avail - width) * alignment;
+  if (off > 0.0f)
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off);
+}
 void EditorUILayer::OnEvent(Event &event) {}
 void EditorUILayer::OnUpdate(float ts) {}
 
@@ -308,7 +318,8 @@ void DrawTransformComponentMenu(uint selectedNode,
                                 std::unique_ptr<GameObject> &node,
                                 Scene &scene) {
 
-  if (ImGui::CollapsingHeader(("Transform "))) {
+  if (ImGui::CollapsingHeader(("Transform##component "))) {
+
     TransformComponent &transform =
         scene.GetComponent<TransformComponent>(selectedNode);
     {
@@ -369,21 +380,113 @@ void DrawTransformComponentMenu(uint selectedNode,
 void DrawModelComponentMenu(uint selectedNode,
                             std::unique_ptr<GameObject> &node, Scene &scene) {
 
-  ModelComponent &modelComponent =
+  ModelComponent &l_mcModelComponent =
       scene.GetComponent<ModelComponent>(selectedNode);
 
+  CAssetSystem &l_asAssetSystem =
+      eHaz_Core::Application::instance->GetAssetSystem();
+
+  const SModelAsset *l_modelAsset =
+      l_asAssetSystem.GetModel(l_mcModelComponent.m_Handle);
+
+  auto &l_vModels = l_asAssetSystem.GetAllModels();
+
+  static ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
+
   if (ImGui::CollapsingHeader("Model")) {
+    ImGui::SeparatorText("");
+    // Button that opens the popup
+    if (ImGui::Button("Select Model")) {
+      ImGui::OpenPopup("ModelSelectionPopup");
+    }
+
+    // The popup itself
+    if (ImGui::BeginPopup("ModelSelectionPopup")) {
+
+      for (size_t i = 0; i < l_vModels.size(); ++i) {
+        auto &l_asModel = l_vModels[i];
+        if (!l_asModel.alive)
+          continue;
+
+        bool isSelected =
+            (l_mhSelectedHandle.index == i &&
+             l_mhSelectedHandle.generation == l_asModel.generation);
+
+        if (ImGui::Selectable(l_asModel.asset.m_strPath.c_str(), isSelected)) {
+          l_mhSelectedHandle.index = i;
+          l_mhSelectedHandle.generation = l_asModel.generation;
+
+          // Update the component with the selected handle
+          l_mcModelComponent.m_Handle = l_mhSelectedHandle;
+
+          // Close popup immediately after selection
+          ImGui::CloseCurrentPopup();
+        }
+
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+
+      ImGui::EndPopup();
+    }
+
+    // Show currently selected model
+    if (l_asAssetSystem.isValidModel(l_mhSelectedHandle)) {
+      ImGui::Text(
+          "Current: %s",
+          l_asAssetSystem.GetModel(l_mhSelectedHandle)->m_strPath.c_str());
+    } else {
+      ImGui::Text("Current: None");
+    }
   }
 }
+
+#define CALL_ADD_FUNCTION(Type) scene.AddComponent<Type>(selectedNode);
 
 void EditorUILayer::DrawInspectWindow() {
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
   auto &sceneGraph = scene.scene_graph;
+
   ImGui::Begin(("Inspect window"));
+
   auto &node = sceneGraph.nodes[selectedNode];
 
   if (node->HasComponentFlag(ComponentID::Transform)) {
     DrawTransformComponentMenu(selectedNode, node, scene);
+  }
+  if (node->HasComponentFlag(ComponentID::Model)) {
+    DrawModelComponentMenu(selectedNode, node, scene);
+  }
+  // AlignForWidth(ImGui::GetWindowWidth());
+
+  ImGui::SeparatorText("");
+  if (ImGui::Button("Add component")) {
+    ImGui::OpenPopup("chs_cmp_insp");
+  }
+
+  if (ImGui::BeginPopup("chs_cmp_insp")) {
+
+    ImGui::SeparatorText("Components");
+
+    for (const auto &[hash, name] : ComponentNames) {
+
+      if (ImGui::Selectable(name.c_str())) {
+
+        switch (HashToID[hash]) {
+
+        case ComponentID::Model: {
+          CALL_ADD_FUNCTION(ModelComponent)
+        } break;
+        case eHaz::ComponentID::Transform: {
+          CALL_ADD_FUNCTION(TransformComponent)
+        } break;
+        }
+
+        ImGui::CloseCurrentPopup(); // optional
+      }
+    }
+
+    ImGui::EndPopup();
   }
 
   ImGui::End();

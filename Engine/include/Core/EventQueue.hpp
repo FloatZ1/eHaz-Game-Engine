@@ -21,13 +21,13 @@ public:
 
   void Clear() { m_Events.clear(); }
 
-  void ProcessSDLEvents() {
+  void ProcessSDLEvents(bool p_bEditorEnabled = false) {
 
     SDL_Event events;
 
     while (SDL_PollEvent(&events)) {
-
-      ImGui_ImplSDL3_ProcessEvent(&events);
+      if (p_bEditorEnabled)
+        ImGui_ImplSDL3_ProcessEvent(&events);
 
       switch (events.type) {
 

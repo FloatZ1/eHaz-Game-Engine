@@ -1,5 +1,6 @@
 #include "Animation/AnimatedModelManager.hpp"
 #include "BitFlags.hpp"
+#include "Core/AssetSystem/Asset.hpp"
 #include "Core/Event.hpp"
 #include "Core/Input/InputSystem.hpp"
 #include "Core/Input/KeyCodes.hpp"
@@ -14,6 +15,7 @@
 #include "imgui.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_oldnames.h>
+#include <cmath>
 #include <iterator>
 #include <memory>
 #include <utility>
@@ -93,7 +95,9 @@ class AppLayer : public eHaz::Layer {
     }
   }
 
-  std::shared_ptr<Model> model;
+  // std::shared_ptr<Model> model;
+
+  ModelID model;
 
   struct camData {
     glm::mat4 view = glm::mat4(1.0f);
@@ -121,12 +125,9 @@ class AppLayer : public eHaz::Layer {
     camDt = Renderer::r_instance->SubmitDynamicData(
         &deta, sizeof(deta), TypeFlags::BUFFER_CAMERA_DATA);
 
-    unsigned int AlbedoTexture =
-        Renderer::p_materialManager->LoadTexture(eRESOURCES_PATH "rizz.png");
+    auto &asset_system = eHaz_Core::Application::instance->GetAssetSystem();
 
-    unsigned int materialID = Renderer::p_materialManager->CreatePBRMaterial(
-        AlbedoTexture, AlbedoTexture, AlbedoTexture, AlbedoTexture,
-        "inthepisser");
+    asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat.json");
 
     auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
     // bullshit hack
@@ -136,23 +137,26 @@ class AppLayer : public eHaz::Layer {
         mat.first.data(), mat.first.size() * sizeof(PBRMaterial),
         TypeFlags::BUFFER_TEXTURE_DATA);
 
-    ShaderComboID shader = Renderer::p_shaderManager->CreateShaderProgramme(
-        eRESOURCES_PATH "shader.vert", eRESOURCES_PATH "shader.frag");
+    eHaz::ShaderHandle defaultShader =
+        asset_system.LoadShader(eRESOURCES_PATH "default_shader.json");
+
+    const eHaz::SShaderAsset *dShaderAsset =
+        asset_system.GetShader(defaultShader);
 
     SDL_Log("\n\n\n" eRESOURCES_PATH "\n\n\n");
     std::string path = eRESOURCES_PATH "boombox.glb";
 
-    // ModelID mdlID = eHazGraphics::Renderer::p_meshManager->LoadHazModel(
-    //     eRESOURCES_PATH "test.hzmdl");
+    eHaz::ModelHandle m_handle = asset_system.LoadModel(path);
 
-    // model = eHazGraphics::Renderer::p_meshManager->GetModel(mdlID);
+    const eHaz::SModelAsset *model_asset = asset_system.GetModel(m_handle);
 
-    model = eHazGraphics::Renderer::p_meshManager->LoadModel(path);
+    model = model_asset->m_modelID;
+    // eHazGraphics::Renderer::p_meshManager->GetModel(model_asset->m_modelID);
 
     glm::mat4 pos =
         glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    Renderer::p_meshManager->SetModelShader(model, shader);
+    Renderer::p_meshManager->SetModelShader(model, dShaderAsset->m_hashedID);
 
     Renderer::r_instance->SubmitStaticModel(model, pos,
                                             TypeFlags::BUFFER_STATIC_MESH_DATA);

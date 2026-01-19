@@ -11,6 +11,7 @@
 #include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
 #include <functional>
+#include <unordered_map>
 #include <vector>
 namespace eHaz {
 
@@ -69,6 +70,21 @@ public:
   }
 
   // FOR USE IN EDITOR ONLY
+
+  template <typename T, typename... Args>
+  void AddComponentPtr(uint objectID, Args &&...args) {
+    entt::entity entity = scene_graph.nodes[objectID]->entity;
+
+    entt::meta_type m_type = entt::resolve<T>();
+    if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()])) {
+      scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
+
+      // return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+    }
+
+    // return GetComponent<T>(objectID);
+  }
+
   template <typename T> void RemoveComponent(uint objectID) {
     entt::entity entity = scene_graph.nodes[objectID]->entity;
 

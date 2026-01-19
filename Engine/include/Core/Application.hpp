@@ -1,6 +1,7 @@
 #ifndef EHAZ_CORE_APPLICATION_HPP
 #define EHAZ_CORE_APPLICATION_HPP
 
+#include "Core/AssetSystem/AssetSystem.hpp"
 #include "Core/Input/InputSystem.hpp"
 #include "Engine/include/Core/EventQueue.hpp"
 #include "Engine/include/Core/Layer.hpp"
@@ -35,11 +36,15 @@ public:
 
     if (isUI == false)
       layerStack.push_layer<TLayer>();
-    else
+    else {
+      m_bEditorMode = true;
       layerStack.PushUILayer<TLayer>();
+    }
   }
 
   eHaz::Scene &getActiveScene() { return currentScene; }
+
+  eHaz::CAssetSystem &GetAssetSystem() { return asset_system; }
 
   double GetDeltaTime() { return deltaTime; }
 
@@ -50,6 +55,10 @@ public:
   void Stop();
 
 private:
+  friend class EditorUILayer;
+
+  bool m_bEditorMode = false;
+
   AppSpec spec;
   eHazGraphics::Renderer renderer;
   double deltaTime = 0;
@@ -60,6 +69,8 @@ private:
   eHaz::PhysicsEngine physics_engine;
 
   eHaz::InputSystem input_system;
+
+  eHaz::CAssetSystem asset_system;
 
   eHaz::Scene currentScene = eHaz::Scene("default scene");
 };
