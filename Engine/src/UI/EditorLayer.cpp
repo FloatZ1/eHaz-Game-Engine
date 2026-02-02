@@ -13,6 +13,7 @@
 #include "imgui.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
+#include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <glm/glm.hpp>
@@ -324,9 +325,16 @@ void DrawTransformComponentMenu(uint selectedNode,
         scene.GetComponent<TransformComponent>(selectedNode);
     {
       ImGui::SeparatorText("Local");
-      ImGui::DragFloat3("Position", glm::value_ptr(transform.localPosition));
+      if (ImGui::DragFloat3("Position",
+                            glm::value_ptr(transform.localPosition))) {
 
-      ImGui::DragFloat3("Scale", glm::value_ptr(transform.localScale));
+        scene.scene_graph.nodes[selectedNode]->m_bUbdateOctree = true;
+      }
+
+      if (ImGui::DragFloat3("Scale", glm::value_ptr(transform.localScale))) {
+
+        scene.scene_graph.nodes[selectedNode]->m_bUbdateOctree = true;
+      }
       glm::quat eulerRotation = transform.localRotation;
 
       // Convert to Euler angles for editing
@@ -386,12 +394,23 @@ void DrawModelComponentMenu(uint selectedNode,
   CAssetSystem &l_asAssetSystem =
       eHaz_Core::Application::instance->GetAssetSystem();
 
+  // Model choice
   const SModelAsset *l_modelAsset =
       l_asAssetSystem.GetModel(l_mcModelComponent.m_Handle);
 
   auto &l_vModels = l_asAssetSystem.GetAllModels();
 
   static ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
+
+  // Material choice
+
+  const SMaterialAsset *l_maaMaterial =
+      l_asAssetSystem.GetMaterial(l_mcModelComponent.materialHandle);
+
+  auto &l_vMaterials = l_asAssetSystem.GetAllMaterials();
+
+  static MaterialHandle l_mathSelectedHandle =
+      l_mcModelComponent.materialHandle;
 
   if (ImGui::CollapsingHeader("Model")) {
     ImGui::SeparatorText("");
@@ -418,7 +437,7 @@ void DrawModelComponentMenu(uint selectedNode,
 
           // Update the component with the selected handle
           l_mcModelComponent.m_Handle = l_mhSelectedHandle;
-
+          node->m_bUbdateOctree = true;
           // Close popup immediately after selection
           ImGui::CloseCurrentPopup();
         }
@@ -438,10 +457,46 @@ void DrawModelComponentMenu(uint selectedNode,
     } else {
       ImGui::Text("Current: None");
     }
+    if (ImGui::Button("Select Material")) {
+      ImGui::OpenPopup("ModelMaterialPopup");
+    }
+    if (ImGui::BeginPopup("ModelMaterialPopup")) {
+
+      for (size_t i = 0; i < l_vMaterials.size(); ++i) {
+        auto &l_asMaterial = l_vMaterials[i];
+
+        if (!l_asMaterial.alive)
+          continue;
+
+        bool isSelected =
+            (l_mathSelectedHandle.index == 1 &&
+             l_mathSelectedHandle.generation == l_asMaterial.generation);
+
+        if (ImGui::Selectable(l_asMaterial.asset.m_strPath.c_str(),
+                              isSelected)) {
+          l_mathSelectedHandle.index = i;
+          l_mathSelectedHandle.generation = l_asMaterial.generation;
+
+          l_mcModelComponent.materialHandle = l_mathSelectedHandle;
+
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandle)) {
+      ImGui::Text(
+          "Current material: %s",
+          l_asAssetSystem.GetMaterial(l_mathSelectedHandle)->m_strPath.c_str());
+    } else {
+      ImGui::Text("Current material: None");
+    }
   }
 }
 
-#define CALL_ADD_FUNCTION(Type) scene.AddComponent<Type>(selectedNode);
+#define CALL_ADD_FUNCTION(Type) scene.AddComponentPtr<Type>(selectedNode);
 
 void EditorUILayer::DrawInspectWindow() {
   auto &scene = eHaz_Core::Application::instance->getActiveScene();

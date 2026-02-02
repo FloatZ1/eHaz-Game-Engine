@@ -1,6 +1,7 @@
 #include "Engine/include/Core/Application.hpp"
 #include "Components.hpp"
 #include "Core/Layer.hpp"
+#include "DataStructures.hpp"
 #include <iterator>
 namespace eHaz_Core {
 Application *Application::instance = nullptr;
@@ -10,8 +11,6 @@ Application::Application(AppSpec spec) : spec(spec) {
   renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
   instance = this;
 
-  currentScene.AddGameObject("root");
-
   // renderer.p_bufferManager->BeginWritting();
 }
 
@@ -19,15 +18,29 @@ Application::~Application() { renderer.Destroy(); }
 
 void Application::Run() {
 
+  constexpr float FIXED_DT = 1.0f / 60.0f;
+  constexpr float MAX_ACCUMULATED_TIME = 0.25f;
+
   Uint64 NOW = SDL_GetPerformanceCounter();
   Uint64 LAST = 0;
 
+  bool l_bPreviousMode = m_bEditorMode;
+
+  float accumulator = 0.0f;
+
   while (renderer.shouldQuit == false) {
+
+    if (l_bPreviousMode != m_bEditorMode)
+      accumulator = 0.0f;
+
     // Calculate delta time
     LAST = NOW;
     NOW = SDL_GetPerformanceCounter();
 
     deltaTime = (double)((NOW - LAST) / (double)SDL_GetPerformanceFrequency());
+
+    deltaTime = std::min(deltaTime, (double)MAX_ACCUMULATED_TIME);
+    accumulator += (float)deltaTime;
 
     // renderer.PollInputEvents();
 
@@ -36,6 +49,26 @@ void Application::Run() {
     layerStack.NotifyEvents(eventQueue);
 
     layerStack.UpdateLayers(deltaTime);
+
+    eHaz::SFrustum l_fFrustum = eHaz::SFrustum::ExtractFrustum(
+        (renderer.GetViewMatrix() * renderer.GetProjection()));
+
+    currentScene.SubmitVisibleObjects(
+        [&](ModelID id, glm::mat4 transform, uint32_t material,
+            TypeFlags flags) {
+          renderer.SubmitStaticModel(id, transform, material, flags);
+        },
+        [&](ModelID id, glm::mat4 transform, uint32_t material) {
+          renderer.SubmitAnimatedModel(id, transform, material);
+        },
+        l_fFrustum);
+
+    while (accumulator >= FIXED_DT) {
+      if (!m_bEditorMode) {
+        currentScene.OnFixedUpdate(FIXED_DT);
+      }
+      accumulator -= FIXED_DT;
+    }
 
     currentScene.OnUpdate(deltaTime);
 
@@ -55,9 +88,9 @@ void Application::Run() {
     eventQueue.Clear();
 
     eventQueue.ProcessSDLEvents(m_bEditorMode);
-  }
 
-  renderer.Destroy();
+    l_bPreviousMode = m_bEditorMode;
+  }
 }
 
 void Application::Stop() { renderer.shouldQuit = true; }

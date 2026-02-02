@@ -8,6 +8,7 @@
 #include <Renderer.hpp>
 #include <SDL3/SDL_log.h>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <vector>
@@ -15,7 +16,8 @@ using namespace eHazGraphics;
 
 namespace eHaz {
 
-CAssetSystem::CAssetSystem() {}
+std::unique_ptr<CAssetSystem> CAssetSystem::m_pInstance = nullptr;
+CAssetSystem::CAssetSystem() { m_pInstance.reset(this); }
 void CAssetSystem::SetDefaultModelShader(eHazGraphics::ShaderComboID p_id) {
   m_scidDefaultModelShader = p_id;
 }
@@ -779,6 +781,26 @@ void CAssetSystem::OnEvent(EventQueue &p_events) {
   }
 }
 
+const eHazGraphics::AABB CAssetSystem::GetModelAABB(ModelHandle p_Handle) {
+  if (isValidModel(p_Handle)) {
+
+    const SModelAsset *l_pModelAsset = GetModel(p_Handle);
+
+    switch (l_pModelAsset->m_bAnimated) {
+
+    case true:
+      return Renderer::p_AnimatedModelManager->GetModelAABB(
+          l_pModelAsset->m_modelID);
+      break;
+
+    case false:
+      return Renderer::p_meshManager->GetModelAABB(l_pModelAsset->m_modelID);
+      break;
+    }
+  }
+
+  return eHazGraphics::AABB();
+}
 ModelHandle CAssetSystem::GetModelHandle(std::string p_strPath) {
 
   return m_umModelHandles[p_strPath];

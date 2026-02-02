@@ -1,7 +1,7 @@
 # Prerequisites
 *.d
 build/*
-.cache/*
+cache/*
 *.idx
 # Compiled Object files
 *.slo

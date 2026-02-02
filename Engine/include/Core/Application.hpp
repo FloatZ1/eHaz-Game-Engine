@@ -73,6 +73,7 @@ private:
   eHaz::CAssetSystem asset_system;
 
   eHaz::Scene currentScene = eHaz::Scene("default scene");
+  ;
 };
 
 } // namespace eHaz_Core

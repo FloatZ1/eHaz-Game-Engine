@@ -1,8 +1,11 @@
 #ifndef EHAZ_SCENE_HPP
 #define EHAZ_SCENE_HPP
 
+#include "BitFlags.hpp"
 #include "Components.hpp"
+#include "DataStructs.hpp"
 #include "GameObject.hpp"
+#include "Octree.hpp"
 #include "Scene-graph.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
@@ -29,45 +32,49 @@ public:
   std::string sceneName;
 
   entt::registry m_registry;
+
+  COctree m_otOctree;
+
   SceneGraph scene_graph;
 
-  Scene(const std::string &name) : sceneName(name) {}
+  Scene(const std::string &name) : sceneName(name) { AddGameObject("root"); }
 
-  int AddGameObject(const std::string &name, uint32_t parent = UINT32_MAX,
-                    entt::entity entity = entt::null);
+  uint32_t AddGameObject(const std::string &name, uint32_t parent = UINT32_MAX,
+                         entt::entity entity = entt::null);
   void RemoveGameObject(uint32_t index, bool recursive = true);
 
   template <typename T> T *TryGetComponent(uint objectID) {
-    entt::entity entity = scene_graph.nodes[objectID]->entity;
-    return m_registry.any_of<T>(entity) ? &m_registry.get<T>(entity) : nullptr;
+    auto &node = scene_graph.nodes[objectID];
+    if (!node || !m_registry.valid(node->entity))
+      return nullptr;
+    return m_registry.try_get<T>(node->entity);
   }
 
   template <typename T> bool HasComponent(uint objectID) const {
-
-    // entt::meta_type m_type = entt::resolve<T>();
-
-    entt::entity entity = scene_graph.nodes[objectID]->entity;
-    return m_registry.any_of<T>(entity);
+    auto &node = scene_graph.nodes[objectID];
+    return node && m_registry.valid(node->entity) &&
+           m_registry.any_of<T>(node->entity);
   }
 
   template <typename T> T &GetComponent(uint objectID) {
-    entt::entity entity = scene_graph.nodes[objectID]->entity;
+    entt::entity &entity = scene_graph.nodes[objectID]->entity;
+
     return m_registry.get<T>(entity);
   }
 
-  template <typename T, typename... Args>
-  T &AddComponent(uint objectID, Args &&...args) {
-    entt::entity entity = scene_graph.nodes[objectID]->entity;
+  /* template <typename T, typename... Args>
+   T &AddComponent(uint objectID, Args &&...args) {
+     entt::entity entity = scene_graph.nodes[objectID]->entity;
 
-    entt::meta_type m_type = entt::resolve<T>();
-    if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()])) {
-      scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
+     entt::meta_type m_type = entt::resolve<T>();
+     if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()]))
+   { scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
 
-      return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
-    }
+       return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+     }
 
-    return GetComponent<T>(objectID);
-  }
+     return GetComponent<T>(objectID);
+   } */
 
   // FOR USE IN EDITOR ONLY
 
@@ -79,7 +86,7 @@ public:
     if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()])) {
       scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
 
-      // return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+      m_registry.emplace<T>(entity, std::forward<Args>(args)...);
     }
 
     // return GetComponent<T>(objectID);
@@ -87,7 +94,8 @@ public:
 
   template <typename T> void RemoveComponent(uint objectID) {
     entt::entity entity = scene_graph.nodes[objectID]->entity;
-
+    if (!HasComponent<T>(objectID))
+      return;
     entt::meta_type m_type = entt::resolve<T>();
 
     scene_graph.nodes[objectID]->RemoveComponentFlag(HashToID[m_type.id()]);
@@ -130,9 +138,16 @@ public:
 
   void OnUpdate(float deltaTime);
 
-  void OnFixedUpdate(float deltaTime);
+  void OnFixedUpdate(float fixedDT);
 
   void OnCreate();
+
+  void SubmitVisibleObjects(
+      std::function<void(ModelID, glm::mat4, uint32_t, TypeFlags)>
+          p_fStaticSubmitFunction,
+      std::function<void(ModelID, glm::mat4, uint32_t)>
+          p_fAnimatedSubmitFunction,
+      const SFrustum &p_fFrustum);
 
 private:
   std::vector<PendingAction> pendingActions;

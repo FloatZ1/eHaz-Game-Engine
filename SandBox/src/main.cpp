@@ -30,6 +30,8 @@ class AppLayer : public eHaz::Layer {
   float lastY = 0.0f;
   SDL_Window *window;
 
+  eHaz::MaterialHandle defaultMat;
+
   double deltaTime;
   void processCameraInput(Window *c_window, Camera &camera) {
     window = c_window->GetWindowPtr();
@@ -99,12 +101,6 @@ class AppLayer : public eHaz::Layer {
 
   ModelID model;
 
-  struct camData {
-    glm::mat4 view = glm::mat4(1.0f);
-    glm::mat4 projection = glm::mat4(1.0f);
-  };
-
-  SBufferRange camDt;
   SBufferRange materials;
   std::pair<const std::vector<PBRMaterial> &, TypeFlags> *mat;
   // boiler plate above for testing
@@ -120,14 +116,9 @@ class AppLayer : public eHaz::Layer {
                              (float)Renderer::p_window->GetHeight(),
                          0.1f, 100.0f);
 
-    camData deta{camera.GetViewMatrix(), projection1};
-
-    camDt = Renderer::r_instance->SubmitDynamicData(
-        &deta, sizeof(deta), TypeFlags::BUFFER_CAMERA_DATA);
-
     auto &asset_system = eHaz_Core::Application::instance->GetAssetSystem();
 
-    asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat.json");
+    defaultMat = asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat.json");
 
     auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
     // bullshit hack
@@ -158,13 +149,18 @@ class AppLayer : public eHaz::Layer {
 
     Renderer::p_meshManager->SetModelShader(model, dShaderAsset->m_hashedID);
 
-    Renderer::r_instance->SubmitStaticModel(model, pos,
-                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
+    const eHaz::SMaterialAsset *defaultAssetMaterial =
+        asset_system.GetMaterial(defaultMat);
+
+    Renderer::r_instance->SubmitStaticModel(
+        model, pos, defaultAssetMaterial->m_uiMaterialID,
+        TypeFlags::BUFFER_STATIC_MESH_DATA);
 
     pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
 
-    Renderer::r_instance->SubmitStaticModel(model, pos,
-                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
+    Renderer::r_instance->SubmitStaticModel(
+        model, pos, defaultAssetMaterial->m_uiMaterialID,
+        TypeFlags::BUFFER_STATIC_MESH_DATA);
 
     // Renderer::p_meshManager->ExportHazModel(eRESOURCES_PATH "test.hzmdl",
     //                                         model->GetID());
@@ -186,26 +182,28 @@ class AppLayer : public eHaz::Layer {
                              (float)Renderer::r_instance->p_window->GetHeight(),
                          0.1f, 100.0f);
 
-    camData camcamdata = {camera.GetViewMatrix(), projection};
-
-    Renderer::r_instance->UpdateDynamicData(camDt, &camcamdata,
-                                            sizeof(camcamdata));
-
+    Renderer::r_instance->SetCameraPosition(camera.Position);
+    Renderer::r_instance->SetViewProjection(camera.GetViewMatrix(), projection);
     Renderer::r_instance->UpdateDynamicData(
         materials, mat->first.data(), mat->first.size() * sizeof(PBRMaterial));
   }
   void OnRender() override {
+
     glm::mat4 pos =
-        glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::translate(glm::mat4(1.0f), glm::vec3(100.0f, 0.0f, 0.0f));
+    const eHaz::SMaterialAsset *defaultAssetMaterial =
+        eHaz_Core::Application::instance->GetAssetSystem().GetMaterial(
+            defaultMat);
 
-    Renderer::r_instance->SubmitStaticModel(model, pos,
-                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
+    Renderer::r_instance->SubmitStaticModel(
+        model, pos, defaultAssetMaterial->m_uiMaterialID,
+        TypeFlags::BUFFER_STATIC_MESH_DATA);
 
-    pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
+    // pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
 
-    Renderer::r_instance->SubmitStaticModel(model, pos,
-                                            TypeFlags::BUFFER_STATIC_MESH_DATA);
-    // Renderer::r_instance->RenderFrame(std::vector<DrawRange> DrawOrder)
+    // Renderer::r_instance->SubmitStaticModel(model, pos,
+    //                                         TypeFlags::BUFFER_STATIC_MESH_DATA);
+    //  Renderer::r_instance->RenderFrame(std::vector<DrawRange> DrawOrder)
     auto ranges = Renderer::p_renderQueue->SubmitRenderCommands();
 
     Renderer::r_instance->RenderFrame(ranges);

@@ -13,6 +13,7 @@
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
 
+#include <ctime>
 #include <functional>
 #include <memory>
 #include <unordered_map>
@@ -73,7 +74,7 @@ struct ModelComponent {
   // int ModelID;
   // int MaterialID;
   // eHazGraphics::ShaderComboID shaderID;
-
+  MaterialHandle materialHandle;
   ModelHandle m_Handle;
 };
 
@@ -117,7 +118,7 @@ static void register_components() {
   // REGISTER_FIELD(ModelComponent, MaterialID)
   // REGISTER_FIELD(ModelComponent, shaderID);
   REGISTER_FIELD(ModelComponent, m_Handle);
-
+  REGISTER_FIELD(ModelComponent, materialHandle);
   // RigidBodyComponent
   REGISTER_COMPONENT(RigidBodyComponent, ComponentID::Rigidbody);
 

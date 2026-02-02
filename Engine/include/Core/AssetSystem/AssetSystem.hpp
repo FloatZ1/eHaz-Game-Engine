@@ -15,6 +15,8 @@ namespace eHaz {
 class CAssetSystem {
 
 public:
+  static std::unique_ptr<CAssetSystem> m_pInstance;
+
   CAssetSystem();
 
   void SetDefaultModelShader(eHazGraphics::ShaderComboID p_id);
@@ -40,7 +42,7 @@ public:
   const STextureAsset *GetTexture(TextureHandle p_Handle);
   const SShaderAsset *GetShader(ShaderHandle p_Handle);
 
-  // Invalid if not asset type
+  const eHazGraphics::AABB GetModelAABB(ModelHandle p_Handle);
 
   void RemoveModel(ModelHandle p_Handle);
   void RemoveMaterial(MaterialHandle p_Handle);
