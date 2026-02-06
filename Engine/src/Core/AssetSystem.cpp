@@ -5,6 +5,7 @@
 #include "DataStructs.hpp"
 #include "MaterialManager.hpp"
 #include "SpecParser.hpp"
+#include "imgui.h"
 #include <Renderer.hpp>
 #include <SDL3/SDL_log.h>
 #include <filesystem>
@@ -17,7 +18,11 @@ using namespace eHazGraphics;
 namespace eHaz {
 
 std::unique_ptr<CAssetSystem> CAssetSystem::m_pInstance = nullptr;
-CAssetSystem::CAssetSystem() { m_pInstance.reset(this); }
+CAssetSystem::CAssetSystem(bool p_bIsCopy) {
+
+  if (!p_bIsCopy)
+    m_pInstance.reset(this);
+}
 void CAssetSystem::SetDefaultModelShader(eHazGraphics::ShaderComboID p_id) {
   m_scidDefaultModelShader = p_id;
 }
@@ -553,6 +558,10 @@ void CAssetSystem::ClearAll() {
     l_renderer->p_shaderManager->RemoveShaderProgramme(asset.asset.m_hashedID);
   }
 
+  Renderer::p_AnimatedModelManager->ClearEverything();
+  Renderer::p_materialManager->ClearMaterials();
+  Renderer::p_meshManager->ClearEverything();
+
   m_vModelAssets.clear();
   m_vMaterialAssets.clear();
   m_vTextureAssets.clear();
@@ -816,5 +825,108 @@ TextureHandle CAssetSystem::GetTextureHandle(std::string p_strPath) {
 ShaderHandle CAssetSystem::GetShaderHandle(std::string p_strPath) {
 
   return m_umShaderHandles[p_strPath];
+}
+void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &p_asOther) {
+
+  for (auto &model : p_asOther.m_vModelAssets) {
+
+    if (model.asset.m_bAnimated) {
+
+      if (Renderer::p_AnimatedModelManager->isLoadedModel(
+              model.asset.m_strPath))
+        continue;
+      else {
+
+        Renderer::p_AnimatedModelManager->LoadAnimatedModel(
+            model.asset.m_strPath);
+      }
+
+    } else {
+
+      if (Renderer::p_meshManager->isLoadedModel(model.asset.m_strPath))
+        continue;
+      else {
+        Renderer::p_meshManager->LoadModel(model.asset.m_strPath);
+      }
+    }
+  }
+
+  for (auto &shader : p_asOther.m_vShaderAssets) {
+
+    if (Renderer::p_shaderManager->isValidProgrameme(shader.asset.m_hashedID))
+      continue;
+    else {
+
+      if (shader.asset.m_scSpec.computePath != std::nullopt) {
+        Renderer::p_shaderManager->CreateShaderProgramme(
+            shader.asset.m_scSpec.computePath.value());
+        continue;
+      }
+
+      if (shader.asset.m_scSpec.geometryPath != std::nullopt) {
+
+        Renderer::p_shaderManager->CreateShaderProgramme(
+            shader.asset.m_scSpec.vertexPath.value(),
+            shader.asset.m_scSpec.fragmentPath.value(),
+            shader.asset.m_scSpec.geometryPath.value());
+
+      } else {
+        Renderer::p_shaderManager->CreateShaderProgramme(
+            shader.asset.m_scSpec.vertexPath.value(),
+            shader.asset.m_scSpec.fragmentPath.value());
+      }
+    }
+  }
+
+  for (int i = 0; i < p_asOther.m_vMaterialAssets.size(); i++) {
+
+    auto &material = p_asOther.m_vMaterialAssets[i];
+
+    if (Renderer::p_materialManager->isValidMaterial(
+            material.asset.m_strName)) {
+      material.asset.m_uiMaterialID =
+          Renderer::p_materialManager->GetMaterialID(material.asset.m_strName);
+    } else {
+
+      MaterialHandle l_mhMaterial = LoadMaterial(material.asset.m_strPath);
+
+      SAssetSlot<SMaterialAsset> &l_maAsset =
+          m_vMaterialAssets[l_mhMaterial.index];
+
+      material.asset.m_uiMaterialID = l_maAsset.asset.m_uiMaterialID;
+    }
+  }
+
+  for (auto &texture : p_asOther.m_vTextureAssets) {
+
+    if (Renderer::p_materialManager->isValidTexture(texture.asset.m_strPath)) {
+
+      texture.asset.m_uiTextureID =
+          Renderer::p_materialManager->GetTextureID(texture.asset.m_strPath);
+    } else {
+
+      TextureHandle l_thTexture = LoadTexture(texture.asset.m_strPath);
+
+      SAssetSlot<STextureAsset> &l_asAsset =
+          m_vTextureAssets[l_thTexture.index];
+
+      texture.asset.m_uiTextureID = l_asAsset.asset.m_uiTextureID;
+    }
+  }
+
+  m_vModelAssets = p_asOther.m_vModelAssets;
+  m_vMaterialAssets = p_asOther.m_vMaterialAssets;
+  m_vShaderAssets = p_asOther.m_vShaderAssets;
+  m_vTextureAssets = p_asOther.m_vTextureAssets;
+
+  m_freeModelSlots = p_asOther.m_freeModelSlots;
+  m_freeMaterialSlots = p_asOther.m_freeMaterialSlots;
+  m_freeShaderSlots = p_asOther.m_freeShaderSlots;
+  m_freeTextureSlots = p_asOther.m_freeTextureSlots;
+
+  m_umModelHandles = p_asOther.m_umModelHandles;
+  m_umMaterialHandles = p_asOther.m_umMaterialHandles;
+  m_umShaderHandles = p_asOther.m_umShaderHandles;
+  m_umTextureHandles = p_asOther.m_umTextureHandles;
 }
 } // namespace eHaz

@@ -1,10 +1,15 @@
 #ifndef EHAZ_ASSET_SYSTEM_HPP
 #define EHAZ_ASSET_SYSTEM_HPP
 
+#include "Animation/AnimatedModelManager.hpp"
 #include "Asset.hpp"
 #include "Core/Event.hpp"
 #include "Core/EventQueue.hpp"
 #include "DataStructs.hpp"
+
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/unordered_map.hpp>
+#include <boost/serialization/vector.hpp>
 
 #include <cstdint>
 #include <string>
@@ -17,7 +22,7 @@ class CAssetSystem {
 public:
   static std::unique_ptr<CAssetSystem> m_pInstance;
 
-  CAssetSystem();
+  CAssetSystem(bool p_bIsCopy = false);
 
   void SetDefaultModelShader(eHazGraphics::ShaderComboID p_id);
   void SetDefaultAnimatedModelShader(eHazGraphics::ShaderComboID p_id);
@@ -76,7 +81,11 @@ public:
 
   std::vector<ResourceInfo> GetResourceList(ResourceType p_type);
 
+  void ValidateAndLoadSystem(CAssetSystem &p_asOther);
+
 private:
+  friend class boost::serialization::access;
+  friend class CAssetSystem;
   eHazGraphics::ShaderComboID m_scidDefaultModelShader;
   eHazGraphics::ShaderComboID m_scidDefaultAnimatedModelShader;
 
@@ -94,6 +103,26 @@ private:
   std::unordered_map<std::string, MaterialHandle> m_umMaterialHandles;
   std::unordered_map<std::string, TextureHandle> m_umTextureHandles;
   std::unordered_map<std::string, ShaderHandle> m_umShaderHandles;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_scidDefaultModelShader;
+    ar & m_scidDefaultAnimatedModelShader;
+    ar & m_vModelAssets;
+    ar & m_vMaterialAssets;
+    ar & m_vShaderAssets;
+    ar & m_vTextureAssets;
+
+    ar & m_freeModelSlots;
+    ar & m_freeMaterialSlots;
+    ar & m_freeTextureSlots;
+    ar & m_freeShaderSlots;
+
+    ar & m_umModelHandles;
+    ar & m_umMaterialHandles;
+    ar & m_umTextureHandles;
+    ar & m_umShaderHandles;
+  }
 };
 
 } // namespace eHaz

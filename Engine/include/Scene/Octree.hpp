@@ -5,8 +5,10 @@
 #include "DataStructs.hpp"
 #include "DataStructures.hpp"
 #include "GameObject.hpp"
+#include "Utils/Drawing/DebugDrawer.hpp"
 
 #include <cstdint>
+#include <memory>
 #include <vector>
 
 using namespace eHazGraphics;
@@ -19,6 +21,7 @@ using namespace eHazGraphics;
 
 #define MAX_OCTREE_BOUNDS_SIZE 32768
 
+// #define MAX_OCTREE_BOUNDS_SIZE 32
 namespace eHaz {
 struct SOctNode {
 
@@ -56,6 +59,8 @@ public:
 
   // removes an object from an octree node
   void Remove(GameObject &p_goObject);
+
+  void DebugVisualzieOctree(std::unique_ptr<DebugDrawer> &p_DebugDrawer);
 
 private:
   // checks the children of the current node and if one fits we recurse, if more

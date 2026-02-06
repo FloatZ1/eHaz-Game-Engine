@@ -11,6 +11,9 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/common.hpp"
+#include <boost/archive/binary_iarchive.hpp>
+#include <boost/archive/binary_oarchive.hpp>
+#include <fstream>
 #include <memory>
 #include <vector>
 
@@ -226,12 +229,64 @@ void Scene::SubmitVisibleObjects(
                                       l_tcTransformComponent->worldRotation,
                                       l_tcTransformComponent->worldScale),
                               l_matMaterialAsset->m_uiMaterialID,
-                              TypeFlags::BUFFER_STATIC_DATA);
+                              TypeFlags::BUFFER_STATIC_MESH_DATA);
       break;
     }
   }
 
   // TODO: make the light submission
+}
+
+void Scene::SaveSceneToDisk(std::string p_strExportPath) {
+  std::ofstream file(p_strExportPath, std::ios::binary);
+  boost::archive::binary_oarchive ar(file);
+
+  ar & sceneName;
+  ar & scene_graph;
+  ar & m_strScenePath;
+
+  CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
+  ar & loadedAssets;
+
+  BoostOutputAdapter adapter{ar};
+  entt::snapshot snapshot{m_registry};
+
+  snapshot.entities(adapter)
+      .component<TransformComponent>(adapter)
+      .component<ModelComponent>(adapter)
+      .component<CameraComponent>(adapter);
+  //.component<AnimatorComponent>(adapter);
+}
+
+bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
+  std::ifstream file(p_strScenePath, std::ios::binary);
+  if (!file.is_open())
+    return false;
+
+  boost::archive::binary_iarchive ar(file);
+
+  ar & sceneName;
+  ar & scene_graph;
+  ar & m_strScenePath;
+
+  CAssetSystem loadedAssets(true);
+  ar & loadedAssets;
+
+  CAssetSystem::m_pInstance->ClearAll();
+  CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);
+
+  m_registry.clear();
+
+  BoostInputAdapter adapter{ar};
+  entt::snapshot_loader loader{m_registry};
+
+  loader.entities(adapter)
+      .component<TransformComponent>(adapter)
+      .component<ModelComponent>(adapter)
+      .component<CameraComponent>(adapter);
+  //.component<AnimatorComponent>(adapter);
+
+  return true;
 }
 
 } // namespace eHaz

@@ -167,4 +167,14 @@ uint32_t COctree::CreateChild(int p_iFittingChild, uint32_t p_uiParentID) {
     return l_onParent.m_uiChildren[p_iFittingChild];
   }
 }
+void COctree::DebugVisualzieOctree(
+    std::unique_ptr<DebugDrawer> &p_DebugDrawer) {
+
+  for (auto &node : m_onNodes) {
+
+    p_DebugDrawer->SubmitCube(node.m_aabbBounds.center,
+                              node.m_aabbBounds.extents,
+                              {1.0f, 0.0f, 1.0f, 0.3f});
+  }
+}
 } // namespace eHaz

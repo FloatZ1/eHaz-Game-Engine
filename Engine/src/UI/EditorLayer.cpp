@@ -5,23 +5,116 @@
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "Core/Event.hpp"
 #include "GameObject.hpp"
+#include "OS_Dialogues.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
 #include "entt/core/fwd.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "imgui.h"
+#include "imgui_internal.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <glm/glm.hpp>
+#include <imgui_stdlib.h>
 #include <memory>
 #include <string>
 #include <unordered_map>
-
 namespace eHaz {
+
+void SceneOptionsMenu(bool *open) {
+  if (!*open)
+    return;
+
+  // Set a consistent starting size for the popup
+  ImGui::SetNextWindowSize(ImVec2(350, 150), ImGuiCond_FirstUseEver);
+
+  if (ImGui::Begin("Scene Properties", open)) {
+    Scene &currentScene = eHaz_Core::Application::instance->getActiveScene();
+
+    // --- Content Area ---
+    ImGui::InputText("Scene Name", &currentScene.sceneName);
+
+    // --- Bottom Right Button Logic ---
+    // 1. Calculate how much space the button needs
+    float buttonWidth = 80.0f;
+    float padding = ImGui::GetStyle().WindowPadding.x;
+
+    // 2. Set cursor to: Window Width - Button Width - Padding
+    float posX = ImGui::GetWindowWidth() - buttonWidth - padding;
+    float posY =
+        ImGui::GetWindowHeight() - ImGui::GetFrameHeightWithSpacing() - padding;
+
+    ImGui::SetCursorPos(ImVec2(posX, posY));
+
+    if (ImGui::Button("Cancel", ImVec2(buttonWidth, 0))) {
+      *open = false;
+    }
+
+    ImGui::End();
+  }
+}
+
+void EditorUILayer::DrawMenuBar() {
+  if (ImGui::BeginMenuBar()) {
+
+    if (ImGui::BeginMenu("File")) {
+
+      if (ImGui::MenuItem("Open")) {
+
+        OpenNativeFileDialog(false, [this](const std::string &fullPath) {
+          eHaz_Core::Application::instance->LoadSceneFromDisk(
+              fullPath); // The 'this->' is implied!
+        });
+      }
+      if (ImGui::MenuItem("Save")) {
+        Scene &currentScene =
+            eHaz_Core::Application::instance->getActiveScene();
+
+        if (currentScene.m_strScenePath == "") {
+
+          OpenNativeFileDialog(true, [this](const std::string &fullPath) {
+            eHaz_Core::Application::instance->getActiveScene().m_strScenePath =
+                fullPath;
+            eHaz_Core::Application::instance->SaveSceneToDisk(
+                fullPath); // The 'this->' is implied!
+          });
+        } else {
+          eHaz_Core::Application::instance->SaveSceneToDisk(
+              currentScene.m_strScenePath);
+        }
+      }
+      if (ImGui::MenuItem("Save as")) {
+        OpenNativeFileDialog(true, [this](const std::string &fullPath) {
+          Scene &currentScene =
+              eHaz_Core::Application::instance->getActiveScene();
+          currentScene.m_strScenePath = fullPath;
+
+          eHaz_Core::Application::instance->SaveSceneToDisk(
+              fullPath); // The 'this->' is implied!
+        });
+      }
+      if (ImGui::MenuItem("Build")) {
+      }
+      ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
+      if (ImGui::MenuItem("Quit")) {
+      }
+
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Edit")) {
+      if (ImGui::MenuItem("Scene Options")) {
+        m_ShowSceneOptions = true; // Trigger the window
+      }
+      ImGui::EndMenu();
+    }
+    ImGui::EndMenuBar();
+  }
+}
 void AlignForWidth(float width, float alignment = 0.5f) {
   ImGuiStyle &style = ImGui::GetStyle();
   float avail = ImGui::GetContentRegionAvail().x;
@@ -141,8 +234,8 @@ void EditorUILayer::OnRender() {
       ImGui::SetNextWindowViewport(viewport->ID);
       windowFlags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-      windowFlags |=
-          ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+      windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus |
+                     ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_MenuBar;
     }
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
@@ -155,6 +248,8 @@ void EditorUILayer::OnRender() {
     ImGuiID dockspaceID = ImGui::GetID("eHazDockspace");
     ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
 
+    DrawMenuBar();
+    SceneOptionsMenu(&m_ShowSceneOptions);
     ImGui::End();
   }
 
@@ -400,7 +495,7 @@ void DrawModelComponentMenu(uint selectedNode,
 
   auto &l_vModels = l_asAssetSystem.GetAllModels();
 
-  static ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
+  ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
 
   // Material choice
 
@@ -409,8 +504,7 @@ void DrawModelComponentMenu(uint selectedNode,
 
   auto &l_vMaterials = l_asAssetSystem.GetAllMaterials();
 
-  static MaterialHandle l_mathSelectedHandle =
-      l_mcModelComponent.materialHandle;
+  MaterialHandle l_mathSelectedHandle = l_mcModelComponent.materialHandle;
 
   if (ImGui::CollapsingHeader("Model")) {
     ImGui::SeparatorText("");

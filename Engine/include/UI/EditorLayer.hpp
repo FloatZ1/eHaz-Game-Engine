@@ -17,6 +17,8 @@ class EditorUILayer : public Layer {
 
   // index of the gameobject in scene_graph
   uint32_t selectedNode = 0;
+  bool m_ShowSceneOptions = false;
+  void DrawMenuBar();
 
   void DrawInspectWindow();
 

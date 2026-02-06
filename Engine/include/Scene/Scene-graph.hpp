@@ -4,11 +4,12 @@
 #include "GameObject.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/signal/emitter.hpp"
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/unique_ptr.hpp>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
-
 namespace eHaz {
 
 class SceneGraph {
@@ -40,6 +41,14 @@ public:
   std::vector<std::unique_ptr<GameObject>> nodes;
 
 private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & nodes;
+    ar & freeIndecies;
+  }
+
   std::vector<uint32_t> freeIndecies;
 };
 

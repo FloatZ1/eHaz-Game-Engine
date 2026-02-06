@@ -7,7 +7,7 @@
 #include "DataStructs.hpp"
 #include "MeshManager.hpp"
 #include "Renderer.hpp"
-
+#include "Utils/Boost_GLM_Serialization.hpp"
 #include "entt/core/hashed_string.hpp"
 #include "entt/entt.hpp"
 #include "glm/gtc/quaternion.hpp"
@@ -26,7 +26,6 @@ enum class ComponentID : uint32_t {
   Model = 1 << 1,
   Rigidbody = 1 << 2,
   Camera = 1 << 3,
-  AnimatedModel = 1 << 4,
   Animator = 1 << 5,
   TriggerZone = 1 << 6
 };
@@ -55,6 +54,20 @@ struct TransformComponent {
   glm::vec3 worldPosition{0.0f};
   glm::quat worldRotation{1, 0, 0, 0};
   glm::vec3 worldScale{1.0f};
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & localPosition;
+    ar & localRotation;
+    ar & localScale;
+
+    ar & worldPosition;
+    ar & worldRotation;
+    ar & worldScale;
+  }
 };
 
 /*struct AnimatedModelComponent {
@@ -71,11 +84,18 @@ struct AnimatorComponent {
 };
 
 struct ModelComponent {
-  // int ModelID;
-  // int MaterialID;
-  // eHazGraphics::ShaderComboID shaderID;
+
   MaterialHandle materialHandle;
   ModelHandle m_Handle;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & materialHandle;
+    ar & m_Handle;
+  }
 };
 
 struct ColliderComponent {};

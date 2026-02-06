@@ -29,6 +29,8 @@ public:
     uint32_t parrentID;
   };
 
+  std::string m_strScenePath = "";
+
   std::string sceneName;
 
   entt::registry m_registry;
@@ -62,22 +64,6 @@ public:
     return m_registry.get<T>(entity);
   }
 
-  /* template <typename T, typename... Args>
-   T &AddComponent(uint objectID, Args &&...args) {
-     entt::entity entity = scene_graph.nodes[objectID]->entity;
-
-     entt::meta_type m_type = entt::resolve<T>();
-     if (!scene_graph.nodes[objectID]->HasComponentFlag(HashToID[m_type.id()]))
-   { scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
-
-       return m_registry.emplace<T>(entity, std::forward<Args>(args)...);
-     }
-
-     return GetComponent<T>(objectID);
-   } */
-
-  // FOR USE IN EDITOR ONLY
-
   template <typename T, typename... Args>
   void AddComponentPtr(uint objectID, Args &&...args) {
     entt::entity entity = scene_graph.nodes[objectID]->entity;
@@ -88,8 +74,6 @@ public:
 
       m_registry.emplace<T>(entity, std::forward<Args>(args)...);
     }
-
-    // return GetComponent<T>(objectID);
   }
 
   template <typename T> void RemoveComponent(uint objectID) {
@@ -149,7 +133,22 @@ public:
           p_fAnimatedSubmitFunction,
       const SFrustum &p_fFrustum);
 
+  // Exports a binary serialization of the whole scene to the specified path
+  void SaveSceneToDisk(std::string p_strExportPath);
+
+  // Loads a binary serialization of a scene and returns true if succesful
+  bool LoadSceneFromDisk(std::string p_strScenePath);
+
 private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & scene_graph;
+    ar & sceneName;
+    ar & m_strScenePath;
+  }
+
   std::vector<PendingAction> pendingActions;
 };
 

@@ -63,6 +63,8 @@ void Application::Run() {
         },
         l_fFrustum);
 
+    //  currentScene.m_otOctree.DebugVisualzieOctree(renderer.p_debugDrawer);
+
     while (accumulator >= FIXED_DT) {
       if (!m_bEditorMode) {
         currentScene.OnFixedUpdate(FIXED_DT);
@@ -95,4 +97,11 @@ void Application::Run() {
 
 void Application::Stop() { renderer.shouldQuit = true; }
 
+void Application::SaveSceneToDisk(std::string p_strExportPath) {
+  currentScene.SaveSceneToDisk(p_strExportPath);
+}
+bool Application::LoadSceneFromDisk(std::string p_strPath) {
+
+  return currentScene.LoadSceneFromDisk(p_strPath);
+}
 } // namespace eHaz_Core

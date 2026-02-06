@@ -7,6 +7,9 @@
 
 #include "DataStructs.hpp"
 #include "entt/entity/fwd.hpp"
+#include <boost/serialization/serialization.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/vector.hpp>
 #include <cstdint>
 #include <vector>
 
@@ -57,6 +60,23 @@ struct GameObject {
   // ------------- COMPARISON -------------
   bool operator==(const GameObject &other) const {
     return index == other.index && entity == other.entity;
+  }
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_bIsLight;
+    ar & index;
+    ar & parent;
+    ar & children;
+    ar & componentMask;
+    ar & name;
+    ar & alive;
+    ar & isStatic;
+    ar & isVisible;
+    ar & entity;
   }
 };
 

@@ -3,9 +3,35 @@
 
 #include "Animation/AnimatedModelManager.hpp"
 #include "DataStructs.hpp"
+#include "entt/fwd.hpp"
 #include <glm/glm.hpp>
-
 namespace eHaz {
+
+template <typename BoostArchive> struct BoostOutputAdapter {
+  BoostArchive &ar;
+
+  // For registry size and entity lists (1 argument)
+  template <typename T> void operator()(const T &value) { ar << value; }
+
+  // For components (2 arguments: entity ID + component data)
+  template <typename T>
+  void operator()(entt::entity entity, const T &component) {
+    ar << entity << component;
+  }
+};
+
+template <typename BoostArchive> struct BoostInputAdapter {
+  BoostArchive &ar;
+
+  // For registry size and entity lists (1 argument)
+  template <typename T> void operator()(T &value) { ar >> value; }
+
+  // For components (2 arguments)
+  template <typename T> void operator()(entt::entity entity, T &component) {
+    ar >> entity >> component;
+  }
+};
+
 inline bool Vec3Different(const glm::vec3 &a, const glm::vec3 &b,
                           float eps = 0.0001f) {
   return glm::any(glm::greaterThan(glm::abs(a - b), glm::vec3(eps)));

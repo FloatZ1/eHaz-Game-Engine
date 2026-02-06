@@ -50,6 +50,10 @@ public:
 
   const eHaz::InputSystem &GetInputSystem() const { return input_system; }
 
+  void SaveSceneToDisk(std::string p_strExportPath);
+
+  bool LoadSceneFromDisk(std::string p_strPath);
+
   void Run();
 
   void Stop();
