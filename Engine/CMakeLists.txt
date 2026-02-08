@@ -22,8 +22,10 @@ add_subdirectory(dependencies/EnvHaz/EnvHaz-Graphics/lib/)
 
 
  include(FetchContent)
- set(CMAKE_C_COMPILER /usr/bin/clang CACHE STRING "" FORCE)
-set(CMAKE_CXX_COMPILER /usr/bin/clang++ CACHE STRING "" FORCE)
+# set(CMAKE_C_COMPILER /usr/bin/clang CACHE STRING "" FORCE)
+#set(CMAKE_CXX_COMPILER /usr/bin/clang++ CACHE STRING "" FORCE)
+
+#if(UNIX)
 
 FetchContent_Declare(
     EnTT
@@ -33,6 +35,10 @@ FetchContent_Declare(
 
  FetchContent_MakeAvailable(EnTT)
 
+#elseif(WIN32)
+
+ #find_package(EnTT REQUIRED)   
+#endif()
  find_package(Boost REQUIRED)
 
 
@@ -47,7 +53,7 @@ file(GLOB_RECURSE EHAZENGINE_SOURCES CONFIGURE_DEPENDS
   
 )
 
-add_library(eHazEngine SHARED ${EHAZENGINE_SOURCES})
+add_library(eHazEngine STATIC ${EHAZENGINE_SOURCES})
 
 target_include_directories(eHazEngine
     PUBLIC

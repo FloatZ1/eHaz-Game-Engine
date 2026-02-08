@@ -23,10 +23,27 @@ target_compile_definitions(eHazEngine PUBLIC
     eEXTERNAL_LIB_PATH="${CMAKE_SOURCE_DIR}/dependencies/"
 )  
 
-
+if(UNIX)
 add_custom_target(run
     COMMAND env __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia $<TARGET_FILE:SandBox>
     DEPENDS SandBox
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     COMMENT "Running SandBox on NVIDIA GPU..."
 )  
+
+endif()
+
+if(WIN32)
+
+add_custom_command(TARGET SandBox POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:EnvHazGraphics>
+        $<TARGET_FILE_DIR:SandBox>
+)
+
+
+endif()
+
+
+
+

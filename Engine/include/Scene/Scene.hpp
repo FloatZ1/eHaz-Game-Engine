@@ -45,27 +45,27 @@ public:
                          entt::entity entity = entt::null);
   void RemoveGameObject(uint32_t index, bool recursive = true);
 
-  template <typename T> T *TryGetComponent(uint objectID) {
+  template <typename T> T *TryGetComponent(uint32_t objectID) {
     auto &node = scene_graph.nodes[objectID];
     if (!node || !m_registry.valid(node->entity))
       return nullptr;
     return m_registry.try_get<T>(node->entity);
   }
 
-  template <typename T> bool HasComponent(uint objectID) const {
+  template <typename T> bool HasComponent(uint32_t objectID) const {
     auto &node = scene_graph.nodes[objectID];
     return node && m_registry.valid(node->entity) &&
            m_registry.any_of<T>(node->entity);
   }
 
-  template <typename T> T &GetComponent(uint objectID) {
+  template <typename T> T &GetComponent(uint32_t objectID) {
     entt::entity &entity = scene_graph.nodes[objectID]->entity;
 
     return m_registry.get<T>(entity);
   }
 
   template <typename T, typename... Args>
-  void AddComponentPtr(uint objectID, Args &&...args) {
+  void AddComponentPtr(uint32_t objectID, Args &&...args) {
     entt::entity entity = scene_graph.nodes[objectID]->entity;
 
     entt::meta_type m_type = entt::resolve<T>();
@@ -76,7 +76,7 @@ public:
     }
   }
 
-  template <typename T> void RemoveComponent(uint objectID) {
+  template <typename T> void RemoveComponent(uint32_t objectID) {
     entt::entity entity = scene_graph.nodes[objectID]->entity;
     if (!HasComponent<T>(objectID))
       return;

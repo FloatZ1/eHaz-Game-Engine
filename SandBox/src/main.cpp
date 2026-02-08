@@ -194,10 +194,15 @@ class AppLayer : public eHaz::Layer {
     const eHaz::SMaterialAsset *defaultAssetMaterial =
         eHaz_Core::Application::instance->GetAssetSystem().GetMaterial(
             defaultMat);
-
+    if(defaultAssetMaterial)
     Renderer::r_instance->SubmitStaticModel(
         model, pos, defaultAssetMaterial->m_uiMaterialID,
         TypeFlags::BUFFER_STATIC_MESH_DATA);
+    else {
+        Renderer::r_instance->SubmitStaticModel(
+            model, pos, 0,
+            TypeFlags::BUFFER_STATIC_MESH_DATA);
+    }
 
     // pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
 

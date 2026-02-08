@@ -9,6 +9,38 @@
 #include "Renderer.hpp"
 #include <cmath>
 #include <memory>
+
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_log.h>
+#include <glad/glad.h>
+
+static void PrintGLContextStatus(SDL_Window* window) {
+    SDL_GLContext ctx = SDL_GL_GetCurrentContext();
+    if (!ctx) {
+        SDL_Log("OpenGL context is NOT current!");
+    }
+    else {
+        SDL_Log("OpenGL context is current: %p", ctx);
+    }
+
+    // Optional: check if glad loaded functions
+    if (gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        SDL_Log("GLAD function pointers are loaded.");
+    }
+    else {
+        SDL_Log("GLAD function pointers are NOT loaded!");
+    }
+
+    // Optional: print OpenGL version
+    const char* version = (const char*)glGetString(GL_VERSION);
+    if (version) {
+        SDL_Log("OpenGL version: %s", version);
+    }
+    else {
+        SDL_Log("Could not query OpenGL version (context may not be current).");
+    }
+}
+
 // add imgui , imguizmo and etc
 
 namespace eHaz {
@@ -36,6 +68,7 @@ class EditorUILayer : public Layer {
         eHazGraphics::Renderer::r_instance->GetMainFBO();
 
     if (mainFBO.GetWidth() != newW || mainFBO.GetHeight() != newH) {
+       PrintGLContextStatus(eHazGraphics::Renderer::p_window->GetWindowPtr()); //on windows if this isnt here it crashes on resize idfk why
       mainFBO.Resize(newW, newH);
     }
 

@@ -11,8 +11,9 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/common.hpp"
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/archive/binary_oarchive.hpp>
+
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
 #include <fstream>
 #include <memory>
 #include <vector>
@@ -238,55 +239,61 @@ void Scene::SubmitVisibleObjects(
 }
 
 void Scene::SaveSceneToDisk(std::string p_strExportPath) {
-  std::ofstream file(p_strExportPath, std::ios::binary);
-  boost::archive::binary_oarchive ar(file);
+    std::ofstream file(p_strExportPath);
+    boost::archive::text_oarchive ar(file);
 
-  ar & sceneName;
-  ar & scene_graph;
-  ar & m_strScenePath;
+    ar& sceneName;
+    ar& scene_graph;
+    ar& m_strScenePath;
 
-  CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
-  ar & loadedAssets;
+    CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
+    ar& loadedAssets;
 
-  BoostOutputAdapter adapter{ar};
-  entt::snapshot snapshot{m_registry};
+    BoostOutputAdapter adapter{ ar };
+    entt::snapshot snapshot{ m_registry };
 
-  snapshot.entities(adapter)
-      .component<TransformComponent>(adapter)
-      .component<ModelComponent>(adapter)
-      .component<CameraComponent>(adapter);
-  //.component<AnimatorComponent>(adapter);
+    snapshot.entities(adapter)
+        .component<TransformComponent>(adapter)
+        .component<ModelComponent>(adapter)
+        .component<CameraComponent>(adapter);
 }
+
 
 bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
-  std::ifstream file(p_strScenePath, std::ios::binary);
-  if (!file.is_open())
-    return false;
+    std::ifstream file(p_strScenePath);
+    if (!file.is_open())
+        return false;
 
-  boost::archive::binary_iarchive ar(file);
+    try {
+        boost::archive::text_iarchive ar(file);
 
-  ar & sceneName;
-  ar & scene_graph;
-  ar & m_strScenePath;
+        ar& sceneName;
+        ar& scene_graph;
+        ar& m_strScenePath;
 
-  CAssetSystem loadedAssets(true);
-  ar & loadedAssets;
+        CAssetSystem loadedAssets(true);
+        ar& loadedAssets;
 
-  CAssetSystem::m_pInstance->ClearAll();
-  CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);
+        CAssetSystem::m_pInstance->ClearAll();
+        CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);
 
-  m_registry.clear();
+        m_registry.clear();
 
-  BoostInputAdapter adapter{ar};
-  entt::snapshot_loader loader{m_registry};
+        BoostInputAdapter adapter{ ar };
+        entt::snapshot_loader loader{ m_registry };
 
-  loader.entities(adapter)
-      .component<TransformComponent>(adapter)
-      .component<ModelComponent>(adapter)
-      .component<CameraComponent>(adapter);
-  //.component<AnimatorComponent>(adapter);
+        loader.entities(adapter)
+            .component<TransformComponent>(adapter)
+            .component<ModelComponent>(adapter)
+            .component<CameraComponent>(adapter);
 
-  return true;
+        return true;
+    }
+    catch (std::exception& e) {
+        std::cout << e.what() << std::endl;
+        return false;
+    }
 }
+
 
 } // namespace eHaz

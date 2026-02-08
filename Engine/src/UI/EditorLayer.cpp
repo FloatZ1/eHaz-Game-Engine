@@ -410,7 +410,7 @@ glm::quat eulerToQuat(const glm::vec3 &euler) {
   return glm::quat(euler); // Expects radians
 }
 
-void DrawTransformComponentMenu(uint selectedNode,
+void DrawTransformComponentMenu(uint32_t selectedNode,
                                 std::unique_ptr<GameObject> &node,
                                 Scene &scene) {
 
@@ -480,7 +480,7 @@ void DrawTransformComponentMenu(uint selectedNode,
   }
 }
 
-void DrawModelComponentMenu(uint selectedNode,
+void DrawModelComponentMenu(uint32_t selectedNode,
                             std::unique_ptr<GameObject> &node, Scene &scene) {
 
   ModelComponent &l_mcModelComponent =

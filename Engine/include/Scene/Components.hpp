@@ -8,8 +8,10 @@
 #include "MeshManager.hpp"
 #include "Renderer.hpp"
 #include "Utils/Boost_GLM_Serialization.hpp"
-#include "entt/core/hashed_string.hpp"
-#include "entt/entt.hpp"
+//#include "entt/core/hashed_string.hpp"
+#include <entt/core/hashed_string.hpp>
+#include <entt/meta/factory.hpp>
+#include <entt/entt.hpp>
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
 
@@ -50,7 +52,7 @@ struct TransformComponent {
   glm::vec3 localPosition{0.0f};
   glm::quat localRotation{1, 0, 0, 0};
   glm::vec3 localScale{1.0f};
-
+  
   glm::vec3 worldPosition{0.0f};
   glm::quat worldRotation{1, 0, 0, 0};
   glm::vec3 worldScale{1.0f};
@@ -124,8 +126,8 @@ struct ScriptComponent {};
 static void register_components() {
 
   // TransformComponent
-  REGISTER_COMPONENT(TransformComponent, ComponentID::Transform)
-  REGISTER_FIELD(TransformComponent, localPosition)
+    REGISTER_COMPONENT(TransformComponent, ComponentID::Transform)
+    REGISTER_FIELD(TransformComponent, localPosition)
   REGISTER_FIELD(TransformComponent, localRotation)
   REGISTER_FIELD(TransformComponent, localScale)
   REGISTER_FIELD(TransformComponent, worldPosition)
@@ -141,7 +143,7 @@ static void register_components() {
   REGISTER_FIELD(ModelComponent, materialHandle);
   // RigidBodyComponent
   REGISTER_COMPONENT(RigidBodyComponent, ComponentID::Rigidbody);
-
+  
   // CameraComponent
   REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
 
@@ -152,15 +154,15 @@ static void register_components() {
   // REGISTER_FIELD(AnimatedModelComponent, shaderID);
   // AnimatorComponent
   REGISTER_COMPONENT(AnimatorComponent, ComponentID::Animator)
-  // REGISTER_FIELD(AnimatorComponent, animator)
-  REGISTER_FIELD(AnimatorComponent, animatorID)
-  REGISTER_FIELD(AnimatorComponent, isPaused)
-  REGISTER_FIELD(AnimatorComponent, isLooping)
-
+      // REGISTER_FIELD(AnimatorComponent, animator)
+      REGISTER_FIELD(AnimatorComponent, animatorID)
+      REGISTER_FIELD(AnimatorComponent, isPaused)
+      REGISTER_FIELD(AnimatorComponent, isLooping)
+      
   // TriggerZone
   REGISTER_COMPONENT(TriggerZone, ComponentID::TriggerZone);
   REGISTER_FIELD(TriggerZone, callback)
-
+      
   // ScriptComponent
   REGISTER_COMPONENT(ScriptComponent, ComponentID::None);
 }
