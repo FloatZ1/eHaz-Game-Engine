@@ -3,15 +3,21 @@
 
 #include "BitFlags.hpp"
 #include "DataStructs.hpp"
+#include <Physics/JoltInclude.hpp>
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/serialization.hpp>
 #include <cstdint>
 #include <optional>
+#include <vector>
+
 namespace eHaz {
 
 struct SAssetHandle {
   uint32_t index = UINT32_MAX;
   uint32_t generation = 0;
+
+  SAssetHandle(SAssetHandle &other)
+      : index(other.index), generation(other.generation) {};
 
 private:
   friend class boost::serialization::access;
@@ -151,10 +157,59 @@ private:
   // additional options here like culling metadata file etc.
 };
 
+struct SConvexHullAsset {
+
+  std::string m_strPath;
+
+  std::vector<JPH::Vec3> m_vVertices;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_vVertices;
+    ar & m_strPath;
+  }
+};
+
+struct SCollisionMeshAsset {
+
+  std::string m_strPath;
+
+  std::vector<JPH::Vec3> m_vVertices;
+
+  std::vector<uint32_t> m_vIndices;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_vVertices;
+    ar & m_strPath;
+    ar & m_vIndices;
+  }
+};
+
 using ModelHandle = SAssetHandle;
 using MaterialHandle = SAssetHandle;
 using TextureHandle = SAssetHandle;
 using ShaderHandle = SAssetHandle;
+using ConvexHullHandle = SAssetHandle;
+using CollisionMeshHandle = SAssetHandle;
 } // namespace eHaz
 
+namespace std {
+
+template <> struct hash<eHaz::SAssetHandle> {
+  size_t operator()(const eHaz::SAssetHandle &k) const {
+    size_t h1 = hash<uint32_t>()(k.generation);
+    size_t h2 = hash<uint32_t>()(k.index);
+
+    return h1 ^ (h2 << 1);
+  }
+};
+
+}; // namespace std
 #endif

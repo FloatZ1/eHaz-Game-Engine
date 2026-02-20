@@ -127,9 +127,10 @@ public:
   void OnCreate();
 
   void SubmitVisibleObjects(
-      std::function<void(ModelID, glm::mat4, uint32_t, TypeFlags)>
+      std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID,
+                         TypeFlags)>
           p_fStaticSubmitFunction,
-      std::function<void(ModelID, glm::mat4, uint32_t)>
+      std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID)>
           p_fAnimatedSubmitFunction,
       const SFrustum &p_fFrustum);
 

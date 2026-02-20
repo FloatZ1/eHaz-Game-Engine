@@ -8,6 +8,10 @@
 #include "imgui.h"
 #include <Renderer.hpp>
 #include <SDL3/SDL_log.h>
+#include <assimp/Importer.hpp>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include <filesystem>
 #include <memory>
 #include <optional>
@@ -16,6 +20,59 @@
 using namespace eHazGraphics;
 
 namespace eHaz {
+std::shared_ptr<SCollisionMeshAsset>
+CAssetSystem::LoadCollisonMeshData(std::string p_strPath) {
+  Assimp::Importer l_asmpImporter;
+
+  const aiScene *l_asmpScene = l_asmpImporter.ReadFile(
+      p_strPath, aiProcess_Triangulate | aiProcess_OptimizeMeshes |
+                     aiProcess_JoinIdenticalVertices);
+
+  std::shared_ptr<SCollisionMeshAsset> l_assReturn =
+      std::make_shared<SCollisionMeshAsset>();
+  l_assReturn->m_strPath = p_strPath;
+
+  const aiMesh *l_asmpMesh = l_asmpScene->mMeshes[0];
+  for (int i = 0; i < l_asmpMesh->mNumVertices; i++) {
+
+    l_assReturn->m_vVertices.push_back({l_asmpMesh->mVertices[i].x,
+                                        l_asmpMesh->mVertices->y,
+                                        l_asmpMesh->mVertices->z});
+  }
+
+  for (unsigned int i = 0; i < l_asmpMesh->mNumFaces; i++) {
+
+    const aiFace l_asmpFace = l_asmpMesh->mFaces[i];
+
+    for (unsigned int j = 0; j < l_asmpFace.mNumIndices; j++) {
+      l_assReturn->m_vIndices.push_back(l_asmpFace.mIndices[j]);
+    }
+  }
+
+  return l_assReturn;
+}
+std::shared_ptr<SConvexHullAsset>
+CAssetSystem::LoadHullData(std::string p_strPath) {
+  Assimp::Importer l_asmpImporter;
+
+  const aiScene *l_asmpScene = l_asmpImporter.ReadFile(
+      p_strPath, aiProcess_Triangulate | aiProcess_OptimizeMeshes |
+                     aiProcess_JoinIdenticalVertices);
+
+  std::shared_ptr<SConvexHullAsset> l_assReturn =
+      std::make_shared<SConvexHullAsset>();
+  l_assReturn->m_strPath = p_strPath;
+
+  const aiMesh *l_asmpMesh = l_asmpScene->mMeshes[0];
+  for (int i = 0; i < l_asmpMesh->mNumVertices; i++) {
+
+    l_assReturn->m_vVertices.push_back({l_asmpMesh->mVertices[i].x,
+                                        l_asmpMesh->mVertices->y,
+                                        l_asmpMesh->mVertices->z});
+  }
+
+  return l_assReturn;
+}
 
 std::unique_ptr<CAssetSystem> CAssetSystem::m_pInstance = nullptr;
 CAssetSystem::CAssetSystem(bool p_bIsCopy) {
@@ -127,6 +184,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
 
 // will probably be just a file with a bunch of paths to the images, or have it
 // contain it themselves and create textures based on that
+
 MaterialHandle CAssetSystem::LoadMaterial(std::string p_strPath) {
 
   if (m_umMaterialHandles.contains(p_strPath))
@@ -567,15 +625,24 @@ void CAssetSystem::ClearAll() {
   m_vTextureAssets.clear();
   m_vShaderAssets.clear();
 
+  m_vCollisionMeshAssets.clear();
+  m_vConvexHullAssets.clear();
+
   m_freeModelSlots.clear();
   m_freeMaterialSlots.clear();
   m_freeTextureSlots.clear();
   m_freeShaderSlots.clear();
 
+  m_freeCollsionMeshSlots.clear();
+  m_freeConvexHullSlots.clear();
+
   m_umModelHandles.clear();
   m_umMaterialHandles.clear();
   m_umTextureHandles.clear();
   m_umShaderHandles.clear();
+
+  m_umCollsionMeshHandles.clear();
+  m_umConvexHullHandles.clear();
 }
 void CAssetSystem::ReloadModel(ModelHandle p_Handle) {
 
@@ -652,6 +719,7 @@ void CAssetSystem::ReloadShader(ShaderHandle p_Handle) {
 
   l_renderer->p_shaderManager->RecompileProgramme(l_saShader.asset.m_hashedID);
 }
+
 const std::vector<SAssetSlot<SModelAsset>> &CAssetSystem::GetAllModels() const {
   return m_vModelAssets;
 }
@@ -826,107 +894,218 @@ ShaderHandle CAssetSystem::GetShaderHandle(std::string p_strPath) {
 
   return m_umShaderHandles[p_strPath];
 }
-void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &p_asOther) {
 
-  for (auto &model : p_asOther.m_vModelAssets) {
+void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
+
+  // -------- copy metadata first --------
+
+  m_vModelAssets = other.m_vModelAssets;
+  m_vMaterialAssets = other.m_vMaterialAssets;
+  m_vShaderAssets = other.m_vShaderAssets;
+  m_vTextureAssets = other.m_vTextureAssets;
+
+  m_freeModelSlots = other.m_freeModelSlots;
+  m_freeMaterialSlots = other.m_freeMaterialSlots;
+  m_freeShaderSlots = other.m_freeShaderSlots;
+  m_freeTextureSlots = other.m_freeTextureSlots;
+
+  m_umModelHandles = other.m_umModelHandles;
+  m_umMaterialHandles = other.m_umMaterialHandles;
+  m_umShaderHandles = other.m_umShaderHandles;
+  m_umTextureHandles = other.m_umTextureHandles;
+
+  m_umCollsionMeshHandles = other.m_umCollsionMeshHandles;
+  m_umConvexHullHandles = other.m_umConvexHullHandles;
+
+  m_vCollisionMeshAssets = other.m_vCollisionMeshAssets;
+
+  m_vConvexHullAssets = other.m_vConvexHullAssets;
+
+  m_freeConvexHullSlots = other.m_freeConvexHullSlots;
+  m_freeCollsionMeshSlots = other.m_freeCollsionMeshSlots;
+
+  // -------- now validate + load --------
+
+  // models
+  for (auto &model : m_vModelAssets) {
+    if (!model.alive)
+      continue;
 
     if (model.asset.m_bAnimated) {
-
-      if (Renderer::p_AnimatedModelManager->isLoadedModel(
+      if (!Renderer::p_AnimatedModelManager->isLoadedModel(
               model.asset.m_strPath))
-        continue;
-      else {
-
         Renderer::p_AnimatedModelManager->LoadAnimatedModel(
             model.asset.m_strPath);
-      }
-
     } else {
-
-      if (Renderer::p_meshManager->isLoadedModel(model.asset.m_strPath))
-        continue;
-      else {
+      if (!Renderer::p_meshManager->isLoadedModel(model.asset.m_strPath))
         Renderer::p_meshManager->LoadModel(model.asset.m_strPath);
-      }
     }
   }
 
-  for (auto &shader : p_asOther.m_vShaderAssets) {
+  // shaders
+  for (auto &shader : m_vShaderAssets) {
+    if (!shader.alive)
+      continue;
 
     if (Renderer::p_shaderManager->isValidProgrameme(shader.asset.m_hashedID))
       continue;
-    else {
 
-      if (shader.asset.m_scSpec.computePath != std::nullopt) {
-        Renderer::p_shaderManager->CreateShaderProgramme(
-            shader.asset.m_scSpec.computePath.value());
-        continue;
-      }
+    auto &s = shader.asset.m_scSpec;
 
-      if (shader.asset.m_scSpec.geometryPath != std::nullopt) {
-
-        Renderer::p_shaderManager->CreateShaderProgramme(
-            shader.asset.m_scSpec.vertexPath.value(),
-            shader.asset.m_scSpec.fragmentPath.value(),
-            shader.asset.m_scSpec.geometryPath.value());
-
-      } else {
-        Renderer::p_shaderManager->CreateShaderProgramme(
-            shader.asset.m_scSpec.vertexPath.value(),
-            shader.asset.m_scSpec.fragmentPath.value());
-      }
-    }
+    if (s.computePath)
+      Renderer::p_shaderManager->CreateShaderProgramme(s.computePath.value());
+    else if (s.geometryPath)
+      Renderer::p_shaderManager->CreateShaderProgramme(
+          s.vertexPath.value(), s.fragmentPath.value(), s.geometryPath.value());
+    else
+      Renderer::p_shaderManager->CreateShaderProgramme(s.vertexPath.value(),
+                                                       s.fragmentPath.value());
   }
 
-  for (int i = 0; i < p_asOther.m_vMaterialAssets.size(); i++) {
-
-    auto &material = p_asOther.m_vMaterialAssets[i];
+  // materials (patch IDs)
+  for (auto &material : m_vMaterialAssets) {
+    if (!material.alive)
+      continue;
 
     if (Renderer::p_materialManager->isValidMaterial(
             material.asset.m_strName)) {
       material.asset.m_uiMaterialID =
           Renderer::p_materialManager->GetMaterialID(material.asset.m_strName);
     } else {
-
-      MaterialHandle l_mhMaterial = LoadMaterial(material.asset.m_strPath);
-
-      SAssetSlot<SMaterialAsset> &l_maAsset =
-          m_vMaterialAssets[l_mhMaterial.index];
-
-      material.asset.m_uiMaterialID = l_maAsset.asset.m_uiMaterialID;
+      auto h = LoadMaterial(material.asset.m_strPath);
+      material.asset.m_uiMaterialID =
+          m_vMaterialAssets[h.index].asset.m_uiMaterialID;
     }
   }
 
-  for (auto &texture : p_asOther.m_vTextureAssets) {
+  // textures (patch IDs)
+  for (auto &texture : m_vTextureAssets) {
+    if (!texture.alive)
+      continue;
 
     if (Renderer::p_materialManager->isValidTexture(texture.asset.m_strPath)) {
-
       texture.asset.m_uiTextureID =
           Renderer::p_materialManager->GetTextureID(texture.asset.m_strPath);
     } else {
-
-      TextureHandle l_thTexture = LoadTexture(texture.asset.m_strPath);
-
-      SAssetSlot<STextureAsset> &l_asAsset =
-          m_vTextureAssets[l_thTexture.index];
-
-      texture.asset.m_uiTextureID = l_asAsset.asset.m_uiTextureID;
+      auto h = LoadTexture(texture.asset.m_strPath);
+      texture.asset.m_uiTextureID =
+          m_vTextureAssets[h.index].asset.m_uiTextureID;
     }
   }
-
-  m_vModelAssets = p_asOther.m_vModelAssets;
-  m_vMaterialAssets = p_asOther.m_vMaterialAssets;
-  m_vShaderAssets = p_asOther.m_vShaderAssets;
-  m_vTextureAssets = p_asOther.m_vTextureAssets;
-
-  m_freeModelSlots = p_asOther.m_freeModelSlots;
-  m_freeMaterialSlots = p_asOther.m_freeMaterialSlots;
-  m_freeShaderSlots = p_asOther.m_freeShaderSlots;
-  m_freeTextureSlots = p_asOther.m_freeTextureSlots;
-
-  m_umModelHandles = p_asOther.m_umModelHandles;
-  m_umMaterialHandles = p_asOther.m_umMaterialHandles;
-  m_umShaderHandles = p_asOther.m_umShaderHandles;
-  m_umTextureHandles = p_asOther.m_umTextureHandles;
 }
+
+CollisionMeshHandle
+CAssetSystem::LoadCollisonMesh(std::string p_strColMeshPath) {
+
+  if (m_umCollsionMeshHandles.contains(p_strColMeshPath))
+    return m_umCollsionMeshHandles[p_strColMeshPath];
+
+  CollisionMeshHandle l_cmHandle;
+  SAssetSlot<SCollisionMeshAsset> l_cmaColMeshAsset;
+  l_cmaColMeshAsset.alive = true;
+  l_cmaColMeshAsset.asset = *LoadCollisonMeshData(p_strColMeshPath);
+  l_cmaColMeshAsset.generation = 0;
+  if (m_freeCollsionMeshSlots.size() > 0) {
+
+    uint32_t l_uiSlotID = m_freeCollsionMeshSlots.back();
+    m_freeCollsionMeshSlots.pop_back();
+
+    l_cmaColMeshAsset.alive = true;
+    l_cmaColMeshAsset.generation =
+        ++m_vCollisionMeshAssets[l_uiSlotID].generation;
+
+    l_cmHandle.index = l_uiSlotID;
+    l_cmHandle.generation = l_cmaColMeshAsset.generation;
+
+    m_vCollisionMeshAssets[l_uiSlotID] = l_cmaColMeshAsset;
+    m_umCollsionMeshHandles.emplace(p_strColMeshPath, l_cmHandle);
+
+    return l_cmHandle;
+
+  } else {
+
+    m_vCollisionMeshAssets.push_back(l_cmaColMeshAsset);
+    uint32_t l_uiSlotID = m_vCollisionMeshAssets.size() - 1;
+
+    l_cmHandle.generation = l_cmaColMeshAsset.generation;
+    l_cmHandle.index = l_uiSlotID;
+
+    m_umCollsionMeshHandles.emplace(p_strColMeshPath, l_cmHandle);
+  }
+
+  return l_cmHandle;
+}
+ConvexHullHandle CAssetSystem::LoadConvexHull(std::string p_strHullPath) {
+
+  if (m_umConvexHullHandles.contains(p_strHullPath))
+    return m_umConvexHullHandles[p_strHullPath];
+
+  ConvexHullHandle l_chHandle;
+  SAssetSlot<SConvexHullAsset> l_chaAsset;
+  l_chaAsset.asset = *LoadHullData(p_strHullPath);
+  l_chaAsset.generation = 0;
+  l_chaAsset.alive = true;
+
+  if (m_freeConvexHullSlots.size() > 0) {
+
+    uint32_t l_uiSlotID = m_freeConvexHullSlots.back();
+    m_freeConvexHullSlots.pop_back();
+
+    l_chaAsset.generation = ++m_vConvexHullAssets[l_uiSlotID].generation;
+
+    l_chHandle.generation = l_chaAsset.generation;
+    l_chHandle.index = l_uiSlotID;
+
+    m_vConvexHullAssets[l_uiSlotID] = l_chaAsset;
+    m_umCollsionMeshHandles.emplace(p_strHullPath, l_chHandle);
+
+  } else {
+
+    m_vConvexHullAssets.push_back(l_chaAsset);
+    uint32_t l_uiSlotID = m_vConvexHullAssets.size() - 1;
+
+    l_chHandle.index = l_uiSlotID;
+    l_chHandle.generation = l_chaAsset.generation;
+
+    m_umConvexHullHandles.emplace(p_strHullPath, l_chHandle);
+  }
+
+  return l_chHandle;
+}
+
+const std::vector<SAssetSlot<SConvexHullAsset>> &
+CAssetSystem::GetAllHulls() const {
+  return m_vConvexHullAssets;
+}
+const std::vector<SAssetSlot<SCollisionMeshAsset>> &
+CAssetSystem::GetAllCollisionMeshes() const {
+  return m_vCollisionMeshAssets;
+}
+ConvexHullHandle CAssetSystem::GetConvexHullHandle(std::string p_strPath) {
+
+  if (m_umConvexHullHandles.contains(p_strPath))
+    return m_umConvexHullHandles[p_strPath];
+
+  return ConvexHullHandle();
+}
+CollisionMeshHandle
+CAssetSystem::GetCollisionMeshHandle(std::string p_strPath) {
+
+  if (m_umCollsionMeshHandles.contains(p_strPath))
+    return m_umCollsionMeshHandles[p_strPath];
+
+  return CollisionMeshHandle();
+}
+
+void CAssetSystem::ReloadConvexHull(ConvexHullHandle p_Handle) {
+
+  m_vConvexHullAssets[p_Handle.index].asset =
+      *LoadHullData(m_vConvexHullAssets[p_Handle.index].asset.m_strPath);
+}
+void CAssetSystem::ReloadCollisionMesh(CollisionMeshHandle p_Handle) {
+
+  m_vCollisionMeshAssets[p_Handle.index].asset = *LoadCollisonMeshData(
+      m_vCollisionMeshAssets[p_Handle.index].asset.m_strPath);
+}
+
 } // namespace eHaz

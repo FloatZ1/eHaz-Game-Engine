@@ -1,4 +1,5 @@
 #include "UI/EditorLayer.hpp"
+#include "BitFlags.hpp"
 #include "Components.hpp"
 #include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
@@ -15,15 +16,231 @@
 #include "imgui_internal.h"
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_stdinc.h>
+#include <algorithm>
+#include <boost/json.hpp>
+#include <boost/json/array.hpp>
+#include <boost/json/kind.hpp>
+#include <boost/json/object.hpp>
+#include <boost/json/serialize.hpp>
+#include <boost/json/value_ref.hpp>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
 #include <glm/glm.hpp>
 #include <imgui_stdlib.h>
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 namespace eHaz {
+
+std::vector<std::string> GetAvailableFlags() {
+
+  std::vector<std::string> l_vReturn;
+
+  for (auto &str : ShaderManagerFlags_names) {
+
+    l_vReturn.push_back(str);
+  }
+  return l_vReturn;
+}
+
+void EditorUILayer::ShaderSpecCreationWindow(bool *open) {
+
+  if (!*open)
+    return;
+
+  ImGui::SetNextWindowSize(ImVec2(350, 150), ImGuiCond_FirstUseEver);
+
+  // Example item lists
+  std::vector<std::string> available = ShaderManagerFlags_names;
+  static std::vector<std::string> selected;
+
+  ImGui::Begin("Dual-List Selector");
+
+  ImGui::Text("Available Items:");
+  ImGui::BeginChild("AvailableBox", ImVec2(200, 200), true);
+
+  for (size_t i = 0; i < available.size(); ++i) {
+    if (ImGui::Selectable(available[i].c_str())) {
+      // Move from available -> selected
+      if (std::find(selected.begin(), selected.end(), available[i]) ==
+          selected.end())
+        selected.push_back(available[i]);
+      // available.erase(available.begin() + i);
+      --i; // adjust index after erase
+    }
+  }
+
+  ImGui::EndChild();
+
+  ImGui::SameLine();
+
+  ImGui::Text("Selected Items:");
+  ImGui::SameLine();
+  ImGui::BeginChild("SelectedBox", ImVec2(200, 200), true);
+
+  for (size_t i = 0; i < selected.size(); ++i) {
+    if (ImGui::Selectable(selected[i].c_str())) {
+      // Move from selected -> available
+      // available.push_back(selected[i]);
+      selected.erase(selected.begin() + i);
+      --i; // adjust index
+    }
+  }
+
+  ImGui::EndChild();
+
+  static std::string s_strSpecPath = "None";
+
+  ImGui::Spacing();
+
+  ImGui::Text("Current Spec path: ");
+  ImGui::Text(s_strSpecPath.c_str());
+
+  if (ImGui::Button("Spec Path \(json\)"))
+    OpenNativeFileDialog(true, [this](const std::string &fullPath) {
+      s_strSpecPath = fullPath;
+    });
+
+  ImGui::BeginChild(32, ImVec2(402, 164), true);
+  static std::string str44 = "null";
+
+  static std::string str40 = "null";
+
+  static std::string str36 = "null";
+
+  static std::string str48 = "null";
+
+  if (ImGui::Button("select vertex shader", ImVec2(148, 19))) {
+
+    OpenNativeFileDialog(false, [this](const std::string &fullPath) {
+      std::string relativePath = fullPath;
+      relativePath.erase(0, std::string(eRESOURCES_PATH).size());
+
+      str36 = relativePath;
+    }); // remove size argument (ImVec2) to auto-resize
+  }
+  ImGui::SameLine();
+
+  ImGui::PushItemWidth(200); // NOTE: (Push/Pop)ItemWidth is optional
+  ImGui::InputText("##current vertex path", &str36);
+  ImGui::PopItemWidth();
+
+  ImGui::NewLine();
+
+  if (ImGui::Button("select geometry shader", ImVec2(162, 19))) {
+
+    OpenNativeFileDialog(false, [this](const std::string &fullPath) {
+      std::string relativePath = fullPath;
+      relativePath.erase(0, std::string(eRESOURCES_PATH).size());
+
+      str40 = relativePath;
+    }); // remove size argument (ImVec2) to auto-resize
+  }
+  ImGui::SameLine();
+
+  ImGui::PushItemWidth(200); // NOTE: (Push/Pop)ItemWidth is optional
+  ImGui::InputText("##current geometry shader", &str40);
+  ImGui::PopItemWidth();
+
+  ImGui::NewLine();
+
+  if (ImGui::Button("select fragment shader", ImVec2(162, 19))) {
+
+    OpenNativeFileDialog(false, [this](const std::string &fullPath) {
+      std::string relativePath = fullPath;
+      relativePath.erase(0, std::string(eRESOURCES_PATH).size());
+
+      str44 = relativePath;
+    });
+
+  } // remove size argument (ImVec2) to auto-resize
+
+  ImGui::SameLine();
+
+  ImGui::PushItemWidth(200); // NOTE: (Push/Pop)ItemWidth is optional
+  ImGui::InputText("##current fragment shader", &str44);
+
+  ImGui::PopItemWidth();
+
+  ImGui::NewLine();
+
+  if (ImGui::Button("select compute shader", ImVec2(155, 19))) {
+
+    OpenNativeFileDialog(false, [this](const std::string &fullPath) {
+      std::string relativePath = fullPath;
+      relativePath.erase(0, std::string(eRESOURCES_PATH).size());
+
+      str48 = relativePath;
+    }); // remove size argument (ImVec2) to auto-resize
+  }
+  ImGui::SameLine();
+
+  ImGui::PushItemWidth(200); // NOTE: (Push/Pop)ItemWidth is optional
+  ImGui::InputText("##current compute shader", &str48);
+  ImGui::PopItemWidth();
+
+  ImGui::EndChild();
+
+  float buttonWidth = 80.0f;
+  float padding = ImGui::GetStyle().WindowPadding.x;
+
+  // 2. Set cursor to: Window Width - Button Width - Padding
+  float posX = ImGui::GetWindowWidth() - buttonWidth - padding;
+  float posY =
+      ImGui::GetWindowHeight() - ImGui::GetFrameHeightWithSpacing() - padding;
+
+  ImGui::SetCursorPos(ImVec2(posX, posY));
+
+  if (ImGui::Button("Cancel##shaderexport", ImVec2(buttonWidth, 0))) {
+    *open = false;
+  }
+  ImGui::SetCursorPos(ImVec2(posX - 10 - buttonWidth, posY));
+  if (ImGui::Button("Save##shaderexport", ImVec2(buttonWidth, 0))) {
+    if (s_strSpecPath != "") {
+      boost::json::object obj;
+
+      if (str36 == "null")
+        obj["vertex"].emplace_null();
+      else
+        obj["vertex"] = str36;
+      if (str44 == "null")
+        obj["fragment"].emplace_null();
+      else
+        obj["fragment"] = str44;
+      if (str40 == "null")
+        obj["geometry"].emplace_null();
+      else
+        obj["geometry"] = str40;
+
+      if (str48 == "null")
+        obj["compute"].emplace_null();
+      else
+        obj["compute"] = str48;
+
+      boost::json::array pipeline_flags;
+
+      for (auto &flag : selected) {
+
+        pipeline_flags.push_back(flag.c_str());
+      }
+
+      obj["pipeline_flags"] = pipeline_flags;
+
+      std::string output = boost::json::serialize(obj);
+
+      std::ofstream file(s_strSpecPath);
+
+      file << output;
+      file.close();
+    }
+  }
+
+  ImGui::End();
+}
 
 void SceneOptionsMenu(bool *open) {
   if (!*open)
@@ -112,6 +329,16 @@ void EditorUILayer::DrawMenuBar() {
       }
       ImGui::EndMenu();
     }
+
+    if (ImGui::BeginMenu("View")) {
+
+      if (ImGui::MenuItem("Shader spec creator")) {
+        m_showShaderSpecWindow = true;
+      }
+
+      ImGui::EndMenu();
+    }
+
     ImGui::EndMenuBar();
   }
 }
@@ -127,6 +354,7 @@ void EditorUILayer::OnUpdate(float ts) {}
 
 void EditorUILayer::OnCreate() {
   // Setup Dear ImGui context
+  m_vAvailableFlags = GetAvailableFlags();
 
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -136,7 +364,8 @@ void EditorUILayer::OnCreate() {
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
   io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-  // Theme from metasprite on Jan 21, 2020 Classic Steam/Half-Life VGUI theme
+  // Theme from metasprite on Jan 21, 2020 Classic Steam/Half-Life VGUI
+  // theme
   ImVec4 *colors = ImGui::GetStyle().Colors;
   colors[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
   colors[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
@@ -250,12 +479,14 @@ void EditorUILayer::OnRender() {
 
     DrawMenuBar();
     SceneOptionsMenu(&m_ShowSceneOptions);
+    ShaderSpecCreationWindow(&m_showShaderSpecWindow);
     ImGui::End();
   }
 
   // --- Panels ---
   DrawGameViewPort();
-  DrawSceneHierarchy(); // after deletion something happens here that causes the
+  DrawSceneHierarchy(); // after deletion something happens here that
+                        // causes the
   DrawInspectWindow();  // segfault
 
   ImGui::Render();
@@ -306,7 +537,8 @@ void DrawPopUpSceneH(Scene &scene, uint32_t nodeID, uint32_t &selectedNode) {
 
         // sceneGraph = scene.scene_graph;
         scene.QueueAction({Scene::PendingAction::Type::Create, nodeID, name});
-        // int child = scene.AddGameObject(name, sceneGraph.nodes[i]->index);
+        // int child = scene.AddGameObject(name,
+        // sceneGraph.nodes[i]->index);
         // scene.scene_graph.nodes[i]->children.push_back(child);
       }
     }
@@ -372,7 +604,9 @@ void DrawNode(eHaz::Scene &scene, uint32_t nodeIndex, uint32_t &selectedNode) {
 void EditorUILayer::DrawSceneHierarchy() {
   ImGui::Begin("Scene Hierarchy");
 
-  // if (ImGui::TreeNodeEx("Scene Hierarchy", ImGuiTreeNodeFlags_DefaultOpen)) {
+  // if (ImGui::TreeNodeEx("Scene Hierarchy",
+  // ImGuiTreeNodeFlags_DefaultOpen))
+  // {
 
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
 
@@ -504,7 +738,11 @@ void DrawModelComponentMenu(uint32_t selectedNode,
 
   auto &l_vMaterials = l_asAssetSystem.GetAllMaterials();
 
+  auto &l_vShaders = l_asAssetSystem.GetAllShaders();
+
   MaterialHandle l_mathSelectedHandle = l_mcModelComponent.materialHandle;
+
+  ShaderHandle l_shSelectedHandle = l_mcModelComponent.m_ShaderHandle;
 
   if (ImGui::CollapsingHeader("Model")) {
     ImGui::SeparatorText("");
@@ -525,7 +763,10 @@ void DrawModelComponentMenu(uint32_t selectedNode,
             (l_mhSelectedHandle.index == i &&
              l_mhSelectedHandle.generation == l_asModel.generation);
 
-        if (ImGui::Selectable(l_asModel.asset.m_strPath.c_str(), isSelected)) {
+        if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
+                                  .filename()
+                                  .c_str(),
+                              isSelected)) {
           l_mhSelectedHandle.index = i;
           l_mhSelectedHandle.generation = l_asModel.generation;
 
@@ -545,12 +786,63 @@ void DrawModelComponentMenu(uint32_t selectedNode,
 
     // Show currently selected model
     if (l_asAssetSystem.isValidModel(l_mhSelectedHandle)) {
-      ImGui::Text(
-          "Current: %s",
-          l_asAssetSystem.GetModel(l_mhSelectedHandle)->m_strPath.c_str());
+      ImGui::Text("Current: %s",
+                  std::filesystem::path(
+                      l_asAssetSystem.GetModel(l_mhSelectedHandle)->m_strPath)
+                      .filename()
+                      .c_str());
     } else {
       ImGui::Text("Current: None");
     }
+    // shader field
+
+    if (ImGui::Button("Select Shader programe")) {
+      ImGui::OpenPopup("ModelShaderPopup");
+    }
+
+    if (ImGui::BeginPopup("ModelShaderPopup")) {
+
+      for (size_t i = 0; i < l_vShaders.size(); ++i) {
+
+        auto &l_asShader = l_vShaders[i];
+
+        if (!l_asShader.alive)
+          continue;
+
+        bool isSelected =
+            (l_shSelectedHandle.index == i &&
+             l_shSelectedHandle.generation == l_asShader.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asShader.asset.m_strSpecPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+          l_shSelectedHandle.index = i;
+          l_shSelectedHandle.generation = l_asShader.generation;
+
+          l_mcModelComponent.m_ShaderHandle = l_shSelectedHandle;
+
+          ImGui::CloseCurrentPopup();
+        }
+
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidShader(l_shSelectedHandle)) {
+      ImGui::Text(
+          "Current shader: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetShader(l_shSelectedHandle)->m_strSpecPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current Shader: None");
+    }
+    // material field
+
     if (ImGui::Button("Select Material")) {
       ImGui::OpenPopup("ModelMaterialPopup");
     }
@@ -563,11 +855,14 @@ void DrawModelComponentMenu(uint32_t selectedNode,
           continue;
 
         bool isSelected =
-            (l_mathSelectedHandle.index == 1 &&
+            (l_mathSelectedHandle.index == i &&
              l_mathSelectedHandle.generation == l_asMaterial.generation);
 
-        if (ImGui::Selectable(l_asMaterial.asset.m_strPath.c_str(),
-                              isSelected)) {
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asMaterial.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
           l_mathSelectedHandle.index = i;
           l_mathSelectedHandle.generation = l_asMaterial.generation;
 
@@ -583,7 +878,10 @@ void DrawModelComponentMenu(uint32_t selectedNode,
     if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandle)) {
       ImGui::Text(
           "Current material: %s",
-          l_asAssetSystem.GetMaterial(l_mathSelectedHandle)->m_strPath.c_str());
+          std::filesystem::path(
+              l_asAssetSystem.GetMaterial(l_mathSelectedHandle)->m_strPath)
+              .filename()
+              .c_str());
     } else {
       ImGui::Text("Current material: None");
     }

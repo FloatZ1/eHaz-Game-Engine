@@ -12,8 +12,7 @@ using FileDialogCallback = std::function<void(const std::string &)>;
 inline void OpenNativeFileDialog(bool isSave,
                                  const FileDialogCallback &onFileSelected) {
   // 1. Define the file filters (Optional: restrict to .ehaz or .json)
-  const SDL_DialogFileFilter filters[] = {{"Scene Files", "scene"},
-                                          {"All Files", "*"}};
+  const SDL_DialogFileFilter filters[] = {{"All Files", "*"}, {"json", "json"}};
 
   // 2. The Internal SDL Callback
   auto sdl_callback = [](void *userdata, const char *const *filelist,

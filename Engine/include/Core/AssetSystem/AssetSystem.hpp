@@ -36,16 +36,26 @@ public:
   // shaders
   ShaderHandle LoadShader(std::string p_strDescriptorPath);
 
+  CollisionMeshHandle LoadCollisonMesh(std::string p_strColMeshPath);
+
+  ConvexHullHandle LoadConvexHull(std::string p_strHullPath);
+
   bool isValidModel(ModelHandle p_Handle);
   bool isValidMaterial(MaterialHandle p_Handle);
   bool isValidTexture(TextureHandle p_Handle);
   bool isValidShader(ShaderHandle p_Handle);
+
+  bool isValidConvexHull(ConvexHullHandle p_Handle);
+  bool isValidCollisionMesh(CollisionMeshHandle p_Handle);
 
   // Invalid if not asset type
   const SModelAsset *GetModel(ModelHandle p_Handle);
   const SMaterialAsset *GetMaterial(MaterialHandle p_Handle);
   const STextureAsset *GetTexture(TextureHandle p_Handle);
   const SShaderAsset *GetShader(ShaderHandle p_Handle);
+
+  const SConvexHullAsset *GetConvexHull(ConvexHullHandle p_Handle);
+  const SCollisionMeshAsset *GetCollisionMesh(CollisionMeshHandle p_Handle);
 
   const eHazGraphics::AABB GetModelAABB(ModelHandle p_Handle);
 
@@ -54,12 +64,18 @@ public:
   void RemoveTexture(TextureHandle p_Handle);
   void RemoveShader(ShaderHandle p_Handle);
 
+  void RemoveConvexHull(ConvexHullHandle p_Handle);
+  void RemoveCollisionMesh(CollisionMeshHandle p_Handle);
+
   void ClearAll();
 
   void ReloadModel(ModelHandle p_Handle);
   void ReloadTexture(TextureHandle p_Handle);
   void ReloadMaterial(MaterialHandle p_Handle);
   void ReloadShader(ShaderHandle p_Handle);
+
+  void ReloadConvexHull(ConvexHullHandle p_Handle);
+  void ReloadCollisionMesh(CollisionMeshHandle p_Handle);
 
   void OnEvent(EventQueue &p_events);
 
@@ -71,6 +87,10 @@ public:
   const std::vector<SAssetSlot<SMaterialAsset>> &GetAllMaterials() const;
   const std::vector<SAssetSlot<SShaderAsset>> &GetAllShaders() const;
 
+  const std::vector<SAssetSlot<SConvexHullAsset>> &GetAllHulls() const;
+  const std::vector<SAssetSlot<SCollisionMeshAsset>> &
+  GetAllCollisionMeshes() const;
+
   ModelHandle GetModelHandle(std::string p_strPath);
 
   MaterialHandle GetMaterialHandle(std::string p_strPath);
@@ -79,11 +99,19 @@ public:
 
   ShaderHandle GetShaderHandle(std::string p_strPath);
 
+  ConvexHullHandle GetConvexHullHandle(std::string p_strPath);
+  CollisionMeshHandle GetCollisionMeshHandle(std::string p_strPath);
+
   std::vector<ResourceInfo> GetResourceList(ResourceType p_type);
 
   void ValidateAndLoadSystem(CAssetSystem &p_asOther);
 
 private:
+  std::shared_ptr<SCollisionMeshAsset>
+  LoadCollisonMeshData(std::string p_strPath);
+
+  std::shared_ptr<SConvexHullAsset> LoadHullData(std::string p_strPath);
+
   friend class boost::serialization::access;
   friend class CAssetSystem;
   eHazGraphics::ShaderComboID m_scidDefaultModelShader;
@@ -94,15 +122,24 @@ private:
   std::vector<SAssetSlot<STextureAsset>> m_vTextureAssets;
   std::vector<SAssetSlot<SShaderAsset>> m_vShaderAssets;
 
+  std::vector<SAssetSlot<SConvexHullAsset>> m_vConvexHullAssets;
+  std::vector<SAssetSlot<SCollisionMeshAsset>> m_vCollisionMeshAssets;
+
   std::vector<uint32_t> m_freeModelSlots;
   std::vector<uint32_t> m_freeMaterialSlots;
   std::vector<uint32_t> m_freeTextureSlots;
   std::vector<uint32_t> m_freeShaderSlots;
 
+  std::vector<uint32_t> m_freeConvexHullSlots;
+  std::vector<uint32_t> m_freeCollsionMeshSlots;
+
   std::unordered_map<std::string, ModelHandle> m_umModelHandles;
   std::unordered_map<std::string, MaterialHandle> m_umMaterialHandles;
   std::unordered_map<std::string, TextureHandle> m_umTextureHandles;
   std::unordered_map<std::string, ShaderHandle> m_umShaderHandles;
+
+  std::unordered_map<std::string, ConvexHullHandle> m_umConvexHullHandles;
+  std::unordered_map<std::string, CollisionMeshHandle> m_umCollsionMeshHandles;
 
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version) {
@@ -122,6 +159,15 @@ private:
     ar & m_umMaterialHandles;
     ar & m_umTextureHandles;
     ar & m_umShaderHandles;
+
+    ar & m_umConvexHullHandles;
+    ar & m_umCollsionMeshHandles;
+
+    ar & m_vCollisionMeshAssets;
+    ar & m_vConvexHullAssets;
+
+    ar & m_freeConvexHullSlots;
+    ar & m_freeCollsionMeshSlots;
   }
 };
 

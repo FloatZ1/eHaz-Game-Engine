@@ -1,0 +1,11 @@
+{
+    "vertex": "shader.vert",
+    "fragment": "shader.frag",
+    "geometry": null,
+    "compute": null,
+    "pipeline_flags": [
+        "DEPTH_WRITE_ENABLED",
+        "DEPTH_TEST_ENABLED",
+        "BLEND_DISABLED"
+    ]
+}

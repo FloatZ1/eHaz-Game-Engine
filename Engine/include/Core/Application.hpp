@@ -63,6 +63,8 @@ private:
 
   bool m_bEditorMode = false;
 
+  bool m_bDebugDrawing = false;
+
   AppSpec spec;
   eHazGraphics::Renderer renderer;
   double deltaTime = 0;

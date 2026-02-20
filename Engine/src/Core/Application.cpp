@@ -11,6 +11,8 @@ Application::Application(AppSpec spec) : spec(spec) {
   renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
   instance = this;
 
+  physics_engine.Initialize();
+
   // renderer.p_bufferManager->BeginWritting();
 }
 
@@ -55,11 +57,13 @@ void Application::Run() {
 
     currentScene.SubmitVisibleObjects(
         [&](ModelID id, glm::mat4 transform, uint32_t material,
-            TypeFlags flags) {
-          renderer.SubmitStaticModel(id, transform, material, flags);
+            ShaderComboID usedShader, TypeFlags flags) {
+          renderer.SubmitStaticModel(id, transform, material, usedShader,
+                                     flags);
         },
-        [&](ModelID id, glm::mat4 transform, uint32_t material) {
-          renderer.SubmitAnimatedModel(id, transform, material);
+        [&](ModelID id, glm::mat4 transform, uint32_t material,
+            ShaderComboID usedShader) {
+          renderer.SubmitAnimatedModel(id, transform, material, usedShader);
         },
         l_fFrustum);
 
@@ -75,14 +79,23 @@ void Application::Run() {
     currentScene.OnUpdate(deltaTime);
 
     renderer.UpdateRenderer(deltaTime);
+
+    physics_engine.SetCameraPosition(renderer.cameraPosition);
+
     if (m_bEditorMode) {
       renderer.SetFrameBuffer(renderer.GetMainFBO());
       layerStack.RenderLayers();
+
+      if (m_bDebugDrawing)
+        renderer.DrawDebug();
       renderer.DefaultFrameBuffer();
 
       layerStack.RenderUILayer();
     } else {
       layerStack.RenderLayers();
+
+      if (m_bDebugDrawing)
+        renderer.DrawDebug();
     }
     renderer.SwapBuffers();
     // eventQueue.ClearHandledEvents();

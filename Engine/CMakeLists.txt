@@ -33,7 +33,19 @@ FetchContent_Declare(
     GIT_TAG v3.12.2
 )
 
- FetchContent_MakeAvailable(EnTT)
+
+
+
+FetchContent_Declare(
+        JoltPhysics
+        GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
+        GIT_TAG "v5.5.0"
+		SOURCE_SUBDIR "Build"
+)
+FetchContent_MakeAvailable(JoltPhysics)
+FetchContent_MakeAvailable(EnTT)
+
+
 
 #elseif(WIN32)
 
@@ -71,6 +83,7 @@ target_include_directories(eHazEngine
 target_link_libraries(eHazEngine
     PUBLIC EnvHazGraphics
     PUBLIC EnTT::EnTT
+    PUBLIC Jolt
 )
 
 

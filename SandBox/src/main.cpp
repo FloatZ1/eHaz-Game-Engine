@@ -100,7 +100,7 @@ class AppLayer : public eHaz::Layer {
   // std::shared_ptr<Model> model;
 
   ModelID model;
-
+  eHaz::ShaderHandle defaultShader;
   SBufferRange materials;
   std::pair<const std::vector<PBRMaterial> &, TypeFlags> *mat;
   // boiler plate above for testing
@@ -128,7 +128,7 @@ class AppLayer : public eHaz::Layer {
         mat.first.data(), mat.first.size() * sizeof(PBRMaterial),
         TypeFlags::BUFFER_TEXTURE_DATA);
 
-    eHaz::ShaderHandle defaultShader =
+    defaultShader =
         asset_system.LoadShader(eRESOURCES_PATH "default_shader.json");
 
     const eHaz::SShaderAsset *dShaderAsset =
@@ -154,13 +154,13 @@ class AppLayer : public eHaz::Layer {
 
     Renderer::r_instance->SubmitStaticModel(
         model, pos, defaultAssetMaterial->m_uiMaterialID,
-        TypeFlags::BUFFER_STATIC_MESH_DATA);
+        dShaderAsset->m_hashedID, TypeFlags::BUFFER_STATIC_MESH_DATA);
 
     pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
 
     Renderer::r_instance->SubmitStaticModel(
         model, pos, defaultAssetMaterial->m_uiMaterialID,
-        TypeFlags::BUFFER_STATIC_MESH_DATA);
+        dShaderAsset->m_hashedID, TypeFlags::BUFFER_STATIC_MESH_DATA);
 
     // Renderer::p_meshManager->ExportHazModel(eRESOURCES_PATH "test.hzmdl",
     //                                         model->GetID());
@@ -194,14 +194,19 @@ class AppLayer : public eHaz::Layer {
     const eHaz::SMaterialAsset *defaultAssetMaterial =
         eHaz_Core::Application::instance->GetAssetSystem().GetMaterial(
             defaultMat);
-    if(defaultAssetMaterial)
-    Renderer::r_instance->SubmitStaticModel(
-        model, pos, defaultAssetMaterial->m_uiMaterialID,
-        TypeFlags::BUFFER_STATIC_MESH_DATA);
+
+    const eHaz::SShaderAsset *deafultAssetShader =
+        eHaz_Core::Application::instance->GetAssetSystem().GetShader(
+            defaultShader);
+
+    if (defaultAssetMaterial)
+      Renderer::r_instance->SubmitStaticModel(
+          model, pos, defaultAssetMaterial->m_uiMaterialID,
+          deafultAssetShader->m_hashedID, TypeFlags::BUFFER_STATIC_MESH_DATA);
     else {
-        Renderer::r_instance->SubmitStaticModel(
-            model, pos, 0,
-            TypeFlags::BUFFER_STATIC_MESH_DATA);
+      Renderer::r_instance->SubmitStaticModel(
+          model, pos, 0, deafultAssetShader->m_hashedID,
+          TypeFlags::BUFFER_STATIC_MESH_DATA);
     }
 
     // pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));

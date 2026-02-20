@@ -187,9 +187,10 @@ void Scene::OnUpdate(float deltaTime) {
 void Scene::OnFixedUpdate(float fixedDT) {}
 
 void Scene::SubmitVisibleObjects(
-    std::function<void(ModelID, glm::mat4, uint32_t, TypeFlags)>
+    std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID, TypeFlags)>
         p_fStaticSubmitFunction,
-    std::function<void(ModelID, glm::mat4, uint32_t)> p_fAnimatedSubmitFunction,
+    std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID)>
+        p_fAnimatedSubmitFunction,
     const SFrustum &p_fFrustum) {
 
   std::vector<uint32_t> l_vVisibleModels =
@@ -206,12 +207,18 @@ void Scene::SubmitVisibleObjects(
     const TransformComponent *l_tcTransformComponent =
         TryGetComponent<TransformComponent>(objectID);
 
+    const SShaderAsset *l_saShader = CAssetSystem::m_pInstance->GetShader(
+        l_mcModelComponent->m_ShaderHandle);
+
     const SModelAsset *l_maModelAsset =
         CAssetSystem::m_pInstance->GetModel(l_mcModelComponent->m_Handle);
 
     const SMaterialAsset *l_matMaterialAsset =
         CAssetSystem::m_pInstance->GetMaterial(
             l_mcModelComponent->materialHandle);
+
+    if (!l_saShader)
+      continue;
 
     switch (l_maModelAsset->m_bAnimated) {
 
@@ -220,7 +227,8 @@ void Scene::SubmitVisibleObjects(
                                 MakeTRS(l_tcTransformComponent->worldPosition,
                                         l_tcTransformComponent->worldRotation,
                                         l_tcTransformComponent->worldScale),
-                                l_matMaterialAsset->m_uiMaterialID);
+                                l_matMaterialAsset->m_uiMaterialID,
+                                l_saShader->m_hashedID);
       break;
 
     case false:
@@ -230,6 +238,7 @@ void Scene::SubmitVisibleObjects(
                                       l_tcTransformComponent->worldRotation,
                                       l_tcTransformComponent->worldScale),
                               l_matMaterialAsset->m_uiMaterialID,
+                              l_saShader->m_hashedID,
                               TypeFlags::BUFFER_STATIC_MESH_DATA);
       break;
     }
@@ -239,61 +248,58 @@ void Scene::SubmitVisibleObjects(
 }
 
 void Scene::SaveSceneToDisk(std::string p_strExportPath) {
-    std::ofstream file(p_strExportPath);
-    boost::archive::text_oarchive ar(file);
+  std::ofstream file(p_strExportPath);
+  boost::archive::text_oarchive ar(file);
 
-    ar& sceneName;
-    ar& scene_graph;
-    ar& m_strScenePath;
+  ar & sceneName;
+  ar & scene_graph;
+  ar & m_strScenePath;
 
-    CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
-    ar& loadedAssets;
+  CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
+  ar & loadedAssets;
 
-    BoostOutputAdapter adapter{ ar };
-    entt::snapshot snapshot{ m_registry };
+  BoostOutputAdapter adapter{ar};
+  entt::snapshot snapshot{m_registry};
 
-    snapshot.entities(adapter)
+  snapshot.entities(adapter)
+      .component<TransformComponent>(adapter)
+      .component<ModelComponent>(adapter)
+      .component<CameraComponent>(adapter);
+}
+
+bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
+  std::ifstream file(p_strScenePath);
+  if (!file.is_open())
+    return false;
+
+  try {
+    boost::archive::text_iarchive ar(file);
+
+    ar & sceneName;
+    ar & scene_graph;
+    ar & m_strScenePath;
+
+    CAssetSystem loadedAssets(true);
+    ar & loadedAssets;
+
+    CAssetSystem::m_pInstance->ClearAll();
+    CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);
+
+    m_registry.clear();
+
+    BoostInputAdapter adapter{ar};
+    entt::snapshot_loader loader{m_registry};
+
+    loader.entities(adapter)
         .component<TransformComponent>(adapter)
         .component<ModelComponent>(adapter)
         .component<CameraComponent>(adapter);
+
+    return true;
+  } catch (std::exception &e) {
+    std::cout << e.what() << std::endl;
+    return false;
+  }
 }
-
-
-bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
-    std::ifstream file(p_strScenePath);
-    if (!file.is_open())
-        return false;
-
-    try {
-        boost::archive::text_iarchive ar(file);
-
-        ar& sceneName;
-        ar& scene_graph;
-        ar& m_strScenePath;
-
-        CAssetSystem loadedAssets(true);
-        ar& loadedAssets;
-
-        CAssetSystem::m_pInstance->ClearAll();
-        CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);
-
-        m_registry.clear();
-
-        BoostInputAdapter adapter{ ar };
-        entt::snapshot_loader loader{ m_registry };
-
-        loader.entities(adapter)
-            .component<TransformComponent>(adapter)
-            .component<ModelComponent>(adapter)
-            .component<CameraComponent>(adapter);
-
-        return true;
-    }
-    catch (std::exception& e) {
-        std::cout << e.what() << std::endl;
-        return false;
-    }
-}
-
 
 } // namespace eHaz
