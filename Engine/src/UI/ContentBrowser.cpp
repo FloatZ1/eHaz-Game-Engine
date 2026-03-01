@@ -1,10 +1,14 @@
+#include "Core/AssetSystem/Asset.hpp"
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "Renderer.hpp"
 #include "UI/EditorLayer.hpp"
 #include "imgui.h"
 #include <filesystem>
+#include <functional>
 namespace fs = std::filesystem;
 namespace eHaz {
+
+template <typename ASSET> void DrawItem() {}
 
 void EditorUILayer::DrawContentBrowser() {
   static float l_fIconSize = 100.0f;
@@ -33,17 +37,31 @@ void EditorUILayer::DrawContentBrowser() {
   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
                       ImVec2(l_fIconPadding, l_fIconPadding));
 
-  auto DrawItem = [&](ImTextureID texture, const std::string &name) {
+  auto DrawItem = [&](ImTextureID texture, const std::string &name,
+                      void (*deleter)(SAssetHandle &), auto handle) {
     ImGui::BeginGroup();
-    std::string id = name;
-    id += l_iItemIndex;
-    ImGui::ImageButton((id).c_str(), texture, ImVec2(l_fIconSize, l_fIconSize));
+
+    std::string id = name + std::to_string(l_iItemIndex);
+
+    ImGui::PushID(l_iItemIndex); // Important for popup ID safety
+
+    ImGui::ImageButton("##img", texture, ImVec2(l_fIconSize, l_fIconSize));
+
+    if (ImGui::BeginPopupContextItem("AssetPopup")) {
+      if (ImGui::MenuItem("Delete")) {
+
+        deleter(handle);
+      }
+      ImGui::EndPopup();
+    }
 
     ImGui::TextWrapped("%s", name.c_str());
 
+    ImGui::PopID();
     ImGui::EndGroup();
 
     l_iItemIndex++;
+
     if (l_iItemIndex % l_iColumnCount != 0)
       ImGui::SameLine();
   };
@@ -54,16 +72,24 @@ void EditorUILayer::DrawContentBrowser() {
     if (!asset.alive)
       continue;
 
-    DrawItem(m_umUiImages["model_icon.png"]->GetTexture(),
-             std::filesystem::path(asset.asset.m_strPath).filename().string());
+    DrawItem(
+        m_umUiImages["model_icon.png"]->GetTexture(),
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveModel((h)); },
+        CAssetSystem::m_pInstance->GetModelHandle(
+            asset.asset.m_strPath +
+            ((asset.asset.m_bAnimated) ? "#anim" : "#static")));
   }
 
   // ───────────────── Materials ─────────────────
   for (auto &asset : CAssetSystem::m_pInstance->GetAllMaterials()) {
     if (!asset.alive)
       continue;
-    DrawItem(m_umUiImages["material_icon.png"]->GetTexture(),
-             std::filesystem::path(asset.asset.m_strPath).filename().string());
+    DrawItem(
+        m_umUiImages["material_icon.png"]->GetTexture(),
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveMaterial((h)); },
+        CAssetSystem::m_pInstance->GetMaterialHandle(asset.asset.m_strPath));
   }
 
   // ───────────────── Shaders ─────────────────
@@ -72,7 +98,9 @@ void EditorUILayer::DrawContentBrowser() {
       continue;
     DrawItem(
         m_umUiImages["shader_icon.png"]->GetTexture(),
-        std::filesystem::path(asset.asset.m_strSpecPath).filename().string());
+        std::filesystem::path(asset.asset.m_strSpecPath).filename().string(),
+        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveShader((h)); },
+        CAssetSystem::m_pInstance->GetShaderHandle(asset.asset.m_strSpecPath));
   }
 
   // ───────────────── Textures ─────────────────
@@ -82,23 +110,36 @@ void EditorUILayer::DrawContentBrowser() {
     DrawItem(
         eHazGraphics::Renderer::r_instance->p_materialManager->GetTextureGLID(
             asset.asset.m_uiTextureID),
-        std::filesystem::path(asset.asset.m_strPath).filename().string());
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveTexture((h)); },
+        CAssetSystem::m_pInstance->GetTextureHandle(asset.asset.m_strPath));
   }
 
   // ───────────────── Hulls ─────────────────
   for (auto &asset : CAssetSystem::m_pInstance->GetAllHulls()) {
     if (!asset.alive)
       continue;
-    DrawItem(m_umUiImages["hull_icon.png"]->GetTexture(),
-             std::filesystem::path(asset.asset.m_strPath).filename().string());
+    DrawItem(
+        m_umUiImages["hull_icon.png"]->GetTexture(),
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) {
+          CAssetSystem::m_pInstance->RemoveConvexHull((h));
+        },
+        CAssetSystem::m_pInstance->GetConvexHullHandle(asset.asset.m_strPath));
   }
 
   // ───────────────── Collision Meshes ─────────────────
   for (auto &asset : CAssetSystem::m_pInstance->GetAllCollisionMeshes()) {
     if (!asset.alive)
       continue;
-    DrawItem(m_umUiImages["collision_mesh_icon.png"]->GetTexture(),
-             std::filesystem::path(asset.asset.m_strPath).filename().string());
+    DrawItem(
+        m_umUiImages["collision_mesh_icon.png"]->GetTexture(),
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) {
+          CAssetSystem::m_pInstance->RemoveCollisionMesh((h));
+        },
+        CAssetSystem::m_pInstance->GetCollisionMeshHandle(
+            asset.asset.m_strPath));
   }
 
   ImGui::PopStyleVar();

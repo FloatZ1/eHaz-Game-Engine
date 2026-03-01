@@ -153,6 +153,10 @@ void PhysicsEngine::ProcessQueues(Scene &p_sCurrentScene) {
   JPH::BodyInterface &l_jbiBodyInterface = physics_system.GetBodyInterface();
 
   for (auto &activationEvent : m_vActivationQueue) {
+    if (activationEvent.m_bidBody.IsInvalid()) {
+      SDL_Log("Warning: Invalid Jolt body id, skipping activation");
+      continue;
+    }
     if (activationEvent.m_bActive) {
       l_jbiBodyInterface.ActivateBody(activationEvent.m_bidBody);
     } else {
@@ -161,6 +165,11 @@ void PhysicsEngine::ProcessQueues(Scene &p_sCurrentScene) {
   }
 
   for (auto &destructionEvent : m_vDestructionQueue) {
+
+    if (destructionEvent.m_bidBody.IsInvalid()) {
+      SDL_Log("Warning: Invalid Jolt body id, skipping deletion");
+      continue;
+    }
     l_jbiBodyInterface.RemoveBody(destructionEvent.m_bidBody);
     l_jbiBodyInterface.DestroyBody(destructionEvent.m_bidBody);
   }

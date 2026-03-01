@@ -2,6 +2,7 @@
 #include "Components.hpp"
 #include "Core/Layer.hpp"
 #include "DataStructures.hpp"
+#include <SDL3/SDL_log.h>
 #include <iterator>
 namespace eHaz_Core {
 Application *Application::instance = nullptr;
@@ -68,6 +69,9 @@ void Application::Run() {
         l_fFrustum);
 
     //  currentScene.m_otOctree.DebugVisualzieOctree(renderer.p_debugDrawer);
+    physics_engine.SetCameraPosition(renderer.cameraPosition);
+
+    physics_engine.ProcessQueues(currentScene);
 
     while (accumulator >= FIXED_DT) {
       if (!m_bEditorMode) {
@@ -75,16 +79,12 @@ void Application::Run() {
       }
       accumulator -= FIXED_DT;
     }
-
+    SDL_Log(physics_engine.GetStats().c_str());
     currentScene.OnUpdate(deltaTime);
 
     renderer.UpdateRenderer(deltaTime);
-
-    physics_engine.SetCameraPosition(renderer.cameraPosition);
-
     if (physics_engine.IsSimulating())
-      physics_engine.StepSimulation(deltaTime);
-
+      physics_engine.StepSimulation(FIXED_DT);
     if (m_bEditorMode) {
       renderer.SetFrameBuffer(renderer.GetMainFBO());
       layerStack.RenderLayers();
@@ -114,8 +114,6 @@ void Application::Run() {
     eventQueue.ProcessSDLEvents(m_bEditorMode);
 
     l_bPreviousMode = m_bEditorMode;
-
-    physics_engine.ProcessQueues(currentScene);
   }
 }
 

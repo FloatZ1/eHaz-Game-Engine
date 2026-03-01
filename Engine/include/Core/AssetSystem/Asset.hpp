@@ -17,9 +17,17 @@ struct SAssetHandle {
   uint32_t generation = 0;
   SAssetHandle() = default;
   SAssetHandle(const SAssetHandle &other)
-      : index(other.index), generation(other.generation) {};
+      : index(other.index), generation(other.generation) {
+    index = other.index;
+    generation = other.generation;
+  };
 
   bool operator==(const SAssetHandle &other) const = default;
+
+  void operator=(const SAssetHandle &other) {
+    index = other.index;
+    generation = other.generation;
+  }
 
 private:
   friend class boost::serialization::access;

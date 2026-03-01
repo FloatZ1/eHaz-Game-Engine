@@ -943,7 +943,7 @@ void DrawBodyDescriptorProperties(uint32_t selectedNode,
 
       ImGui::EndPopup();
     }
-    if (l_asAssetSystem.isValidModel(l_chhSelectedHandle)) {
+    if (l_asAssetSystem.isValidCollisionMesh(l_chhSelectedHandle)) {
       ImGui::Text(
           "Current: %s",
           std::filesystem::path(
@@ -1038,18 +1038,27 @@ void DrawRigidBodyComponentMenu(uint32_t selectedNode,
     }
 
     {
-      static const char *s_motionNames[] = {"Static", "Kinematic", "Dynamic"};
+      // static const char *s_motionNames[] = {"Static", "Kinematic",
+      // "Dynamic"};
+
+      static std::unordered_map<JPH::EMotionType, const char *> s_umNames = {
+          {JPH::EMotionType::Static, "Static"},
+          {JPH::EMotionType::Kinematic, "Kinematic"},
+          {JPH::EMotionType::Dynamic, "Dynamic"}};
 
       // Your component stores this:
-      int &currentMotion =
-          reinterpret_cast<int &>(l_rbcRigidBodyComponent.m_jmtMotionType);
+      uint8_t &currentMotion =
+          reinterpret_cast<uint8_t &>(l_rbcRigidBodyComponent.m_jmtMotionType);
       // OR better: store m_uiLayer as int directly
 
-      if (ImGui::BeginCombo("Motion type", s_motionNames[currentMotion])) {
-        for (int i = 0; i < IM_ARRAYSIZE(s_motionNames); ++i) {
+      if (ImGui::BeginCombo(
+              "Motion type",
+              s_umNames[l_rbcRigidBodyComponent.m_jmtMotionType])) {
+        for (uint8_t i = 0; i < 3; ++i) {
           bool selected = (currentMotion == i);
 
-          if (ImGui::Selectable(s_motionNames[i], selected)) {
+          if (ImGui::Selectable(s_umNames[static_cast<JPH::EMotionType>(i)],
+                                selected)) {
             currentMotion = i;
           }
 

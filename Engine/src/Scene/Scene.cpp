@@ -93,7 +93,8 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
 
   if (rigidBodyComponent != nullptr) {
 
-    if (rigidBodyComponent->m_jmtMotionType != JPH::EMotionType::Static) {
+    if (rigidBodyComponent->m_jmtMotionType == JPH::EMotionType::Dynamic &&
+        PhysicsEngine::s_Instance->IsSimulating()) {
       TransformComponent ll_tcTransformComponent =
           PhysicsEngine::s_Instance->GetTransform(
               rigidBodyComponent->m_jbidBodyID);
@@ -227,7 +228,8 @@ void Scene::SubmitVisibleObjects(
   for (uint32_t &objectID : l_vVisibleModels) {
 
     std::unique_ptr<GameObject> &l_pObject = scene_graph.nodes[objectID];
-
+    if (!l_pObject->isVisible)
+      continue;
     const ModelComponent *l_mcModelComponent =
         TryGetComponent<ModelComponent>(objectID);
 
@@ -301,7 +303,6 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     return false;
 
   try {
-
     auto oldView = m_registry.view<RigidBodyComponent>();
 
     for (auto &entity : oldView) {
@@ -310,6 +311,7 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
           m_registry.get<RigidBodyComponent>(entity).m_jbidBodyID);
     }
 
+    PhysicsEngine::s_Instance->ProcessQueues(*this);
     boost::archive::text_iarchive ar(file);
 
     ar & sceneName;
@@ -351,6 +353,7 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
       m_otOctree.Insert(*node);
     }
 
+    PhysicsEngine::s_Instance->ProcessQueues(*this);
     return true;
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;
