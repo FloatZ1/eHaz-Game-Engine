@@ -107,9 +107,10 @@ public:
   void ValidateAndLoadSystem(CAssetSystem &p_asOther);
 
 private:
+  // Loads the model from disk
   std::shared_ptr<SCollisionMeshAsset>
   LoadCollisonMeshData(std::string p_strPath);
-
+  // loads the hull from disk
   std::shared_ptr<SConvexHullAsset> LoadHullData(std::string p_strPath);
 
   friend class boost::serialization::access;

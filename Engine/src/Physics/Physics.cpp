@@ -254,6 +254,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
+    m_umBoxShapes[l_bkKey] = l_srefShape;
     return l_srefShape;
 
   } break;
@@ -278,6 +279,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
+    m_umCapsuleShapes[l_ckKey] = l_srefShape;
     return l_srefShape;
 
   } break;
@@ -310,6 +312,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
+    m_umConvexHulls[p_bdDescription.m_chhHullHandle] = l_srefShape;
     return l_srefShape;
 
   } break;
@@ -361,6 +364,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
+    m_umCollisionMeshes[p_bdDescription.m_cmhMeshHandle] = l_srefShape;
     return l_srefShape;
 
   } break;
@@ -381,6 +385,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
+    m_umSphereShapes[p_bdDescription.m_fRadius] = l_srefShape;
     return l_srefShape;
 
   } break;

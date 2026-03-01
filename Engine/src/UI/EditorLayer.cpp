@@ -53,6 +53,166 @@ std::vector<std::string> GetAvailableFlags() {
   return l_vReturn;
 }
 
+void EditorUILayer::MaterialSpecCreationWindow(bool *open) {
+  if (!*open)
+    return;
+
+  ImGui::SetNextWindowSize(ImVec2(600, 420), ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin("Material Spec Creator", open)) {
+    ImGui::End();
+    return;
+  }
+
+  auto &assetSystem = *eHaz::CAssetSystem::m_pInstance;
+
+  // Persistent state
+  static eHaz::TextureHandle hAlbedo;
+  static eHaz::TextureHandle hNormal;
+  static eHaz::TextureHandle hPRM;
+  static eHaz::TextureHandle hEmission;
+
+  static float luminance = 0.0f;
+  static std::string exportPath = "None";
+
+  const float previewSize = 64.0f;
+  const float buttonWidth = 150.0f;
+
+  auto DrawSlot = [&](const char *label, eHaz::TextureHandle &handle) {
+    ImGui::PushID(label);
+
+    // -------- Row Layout --------
+    ImGui::BeginGroup();
+
+    // Button
+    if (ImGui::Button(label, ImVec2(buttonWidth, 0))) {
+      ImGui::OpenPopup("SelectTexturePopup");
+    }
+
+    ImGui::SameLine();
+
+    // Current Path
+    const eHaz::STextureAsset *tex = nullptr;
+    if (assetSystem.isValidTexture(handle))
+      tex = assetSystem.GetTexture(handle);
+
+    std::string filename = "None";
+    if (tex)
+      filename = std::filesystem::path(tex->m_strPath).filename().string();
+
+    ImGui::TextUnformatted(filename.c_str());
+
+    // -------- Thumbnail --------
+    ImTextureID texID = 0;
+
+    if (tex) {
+      uint32_t glID =
+          eHazGraphics::Renderer::r_instance->p_materialManager->GetTextureGLID(
+              tex->m_uiTextureID);
+
+      texID = (ImTextureID)(uintptr_t)glID;
+    }
+
+    ImGui::Image(texID, ImVec2(previewSize, previewSize));
+
+    ImGui::EndGroup();
+
+    // -------- Popup --------
+    if (ImGui::BeginPopup("SelectTexturePopup")) {
+      const auto &textures = assetSystem.GetAllTextures();
+
+      for (uint32_t i = 0; i < textures.size(); ++i) {
+        const auto &slot = textures[i];
+        if (!slot.alive)
+          continue;
+
+        const std::string name =
+            std::filesystem::path(slot.asset.m_strPath).filename().string();
+
+        if (ImGui::Selectable(name.c_str())) {
+          handle.index = i;
+          handle.generation = slot.generation;
+          ImGui::CloseCurrentPopup();
+        }
+      }
+
+      ImGui::Separator();
+
+      if (ImGui::Selectable("Clear")) {
+        handle = {};
+        ImGui::CloseCurrentPopup();
+      }
+
+      ImGui::EndPopup();
+    }
+
+    ImGui::PopID();
+    ImGui::Spacing();
+  };
+
+  // -------- Slots --------
+  DrawSlot("Select Albedo", hAlbedo);
+  DrawSlot("Select Normal", hNormal);
+  DrawSlot("Select PRM", hPRM);
+  DrawSlot("Select Emission", hEmission);
+
+  ImGui::Separator();
+
+  // -------- Luminance --------
+  ImGui::PushItemWidth(200);
+  ImGui::DragFloat("Luminance", &luminance, 0.01f, 0.0f, 100.0f);
+  ImGui::PopItemWidth();
+
+  ImGui::Spacing();
+  ImGui::Separator();
+  ImGui::Spacing();
+
+  // -------- Export Path --------
+  if (ImGui::Button("Select Export Location", ImVec2(buttonWidth, 0))) {
+    OpenNativeFileDialog(
+        true, [&](const std::string &fullPath) { exportPath = fullPath; });
+  }
+
+  ImGui::SameLine();
+  ImGui::TextUnformatted(exportPath.c_str());
+
+  ImGui::Spacing();
+
+  // -------- Save Button --------
+  if (ImGui::Button("Save Material Spec", ImVec2(200, 0))) {
+    if (exportPath != "None") {
+      boost::json::object obj;
+
+      auto WriteSlot = [&](const char *name, eHaz::TextureHandle &handle) {
+        if (assetSystem.isValidTexture(handle)) {
+          const auto *tex = assetSystem.GetTexture(handle);
+
+          std::filesystem::path fullPath = tex->m_strPath;
+          std::filesystem::path resourceRoot = eRESOURCES_PATH;
+
+          std::filesystem::path relativePath =
+              std::filesystem::relative(fullPath, resourceRoot);
+
+          obj[name] = relativePath.generic_string(); // forward slashes
+        } else {
+          obj[name] = nullptr;
+        }
+      };
+
+      WriteSlot("albedo", hAlbedo);
+      WriteSlot("normal", hNormal);
+      WriteSlot("PRM", hPRM);
+      WriteSlot("emission", hEmission);
+
+      obj["luminance"] = luminance;
+
+      std::ofstream file(exportPath);
+      file << boost::json::serialize(obj);
+      file.close();
+    }
+  }
+
+  ImGui::End();
+}
 void EditorUILayer::ShaderSpecCreationWindow(bool *open) {
 
   if (!*open)
@@ -367,7 +527,9 @@ void EditorUILayer::DrawMenuBar() {
       if (ImGui::MenuItem("Shader spec creator")) {
         m_showShaderSpecWindow = true;
       }
-
+      if (ImGui::MenuItem("Material spec creator")) {
+        m_showMatSpecCreator = true;
+      }
       if (ImGui::MenuItem("Debug options")) {
         m_showDebugOptions = true;
       }
@@ -570,6 +732,7 @@ void EditorUILayer::OnRender() {
   DrawGameViewPort();
   DrawSceneHierarchy();
   DebugOptionsWindow(&m_showDebugOptions);
+  MaterialSpecCreationWindow(&m_showMatSpecCreator);
   DrawInspectWindow();
   DrawContentBrowser();
   DrawSceneButtonDock();
@@ -845,7 +1008,7 @@ void DrawBodyDescriptorProperties(uint32_t selectedNode,
 
     auto &l_vConvexHulls = l_asAssetSystem.GetAllHulls();
 
-    ConvexHullHandle l_chhSelectedHandle =
+    ConvexHullHandle &l_chhSelectedHandle =
         l_rbcRigidBodyComponent.m_bdDescription.m_chhHullHandle;
 
     if (ImGui::Button("Select Convex Hull")) {
@@ -903,7 +1066,7 @@ void DrawBodyDescriptorProperties(uint32_t selectedNode,
 
     auto &l_vCollisionMeshes = l_asAssetSystem.GetAllCollisionMeshes();
 
-    CollisionMeshHandle l_chhSelectedHandle =
+    CollisionMeshHandle &l_chhSelectedHandle =
         l_rbcRigidBodyComponent.m_bdDescription.m_cmhMeshHandle;
 
     if (ImGui::Button("Select Collision mesh")) {
