@@ -8,8 +8,7 @@ It is designed to be easily modifiable and extensible, giving developers
 full control over their technology stack without restrictive licensing,
 pricing models, or technological lock-ins.
 
-The engine focuses on flexibility, transparency, and suitability for
-both 2D and lightweight 3D applications.
+The engine focuses on flexibility, transparency, and suitability for 3D applications.
 
 ### Core Systems
 
