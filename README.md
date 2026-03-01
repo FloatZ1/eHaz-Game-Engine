@@ -69,7 +69,7 @@ vcpkg install assimp:x64-windows-static
 1.  Clone the repository:
 
 ``` bash
-git clone <your-repository-url>
+git clone https://github.com/FloatZ1/eHaz-Game-Engine
 ```
 
 2.  Install dependencies (see above).
