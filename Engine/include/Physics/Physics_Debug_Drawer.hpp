@@ -1,6 +1,6 @@
-#ifndef EHAZ_PHYSICS_DEBUG_RENDERER
-#define EHAZ_PHYSICS_DEBUG_RENDERER
-
+// #ifndef EHAZ_PHYSICS_DEBUG_RENDERER
+// #define EHAZ_PHYSICS_DEBUG_RENDERER
+#pragma once
 // modified from https://github.com/fdarling/jolt-game-demo/
 
 // clang-format off
@@ -8,10 +8,7 @@
 #include "DataStructs.hpp"
 #include "JoltInclude.hpp"
 
-#include "Jolt/Core/Memory.h"
-#include "Jolt/Core/Reference.h"
-#include "Jolt/Math/Vec3.h"
-#include "Jolt/Renderer/DebugRenderer.h"
+
 #include "glm/glm.hpp"
 
 #include "glad/glad.h"
@@ -104,10 +101,12 @@ void main() {
 )glsl";
 };
 
-class CPhysicsDebugRenderer final : JPH::DebugRenderer {
+class CPhysicsDebugRenderer final : public JPH::DebugRenderer {
 
 public:
-  void Initialize();
+  JPH_OVERRIDE_NEW_DELETE
+
+  void Init();
 
   void DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo,
                 JPH::ColorArg inColor) override;
@@ -137,7 +136,9 @@ public:
 
   void DrawCollectedTriangles();
 
-  ~CPhysicsDebugRenderer();
+  CPhysicsDebugRenderer();
+
+  ~CPhysicsDebugRenderer() override;
 
 protected:
   std::vector<JPH::DebugRenderer::Triangle> m_vCollectedTriangles;
@@ -226,4 +227,4 @@ void main() {
 
 } // namespace eHaz
 
-#endif
+// #endif

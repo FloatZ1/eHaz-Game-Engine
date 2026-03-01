@@ -1,6 +1,7 @@
 
 #include "Octree.hpp"
 #include "Utility/DataStructures.hpp"
+#include <SDL3/SDL_log.h>
 #include <algorithm>
 #include <cstdint>
 #include <functional>
@@ -75,9 +76,12 @@ std::vector<uint32_t> COctree::QueryRenderables(const SFrustum &p_Frustum) {
 }
 void COctree::Insert(GameObject &p_goObject) {
 
-  if (p_goObject.m_aabbVisibleBounds.extents == glm::vec3(0.0f))
-    return;
+  if (!Vec3Different(p_goObject.m_aabbVisibleBounds.extents, glm::vec3(0.0f))) {
+    glm::vec3 l_v3Extents = p_goObject.m_aabbVisibleBounds.extents;
+    SDL_Log("AABB size: %f,%f.%f", l_v3Extents.x, l_v3Extents.y, l_v3Extents.z);
 
+    return;
+  }
   int l_iCurrentDepth = 0;
 
   int l_iCurrentNode = 0;

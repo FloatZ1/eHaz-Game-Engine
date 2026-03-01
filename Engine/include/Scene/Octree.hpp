@@ -62,6 +62,11 @@ public:
 
   void DebugVisualzieOctree(std::unique_ptr<DebugDrawer> &p_DebugDrawer);
 
+  void ClearOctree() {
+    m_onNodes.clear();
+    m_vFreeIndecies.clear();
+  }
+
 private:
   // checks the children of the current node and if one fits we recurse, if more
   // than one fit insert into current node

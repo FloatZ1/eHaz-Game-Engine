@@ -1,6 +1,7 @@
 #ifndef EHAZ_PHYSICS_HPP
 #define EHAZ_PHYSICS_HPP
 // clang-format off
+#include "Components.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 #include "JoltInclude.hpp"
 
@@ -10,6 +11,7 @@
 // clang-format on
 
 #include "Physics_Debug_Drawer.hpp"
+#include "glm/fwd.hpp"
 #include "glm/glm.hpp"
 #include <Scene.hpp>
 #include <cstdint>
@@ -32,9 +34,12 @@ struct CapsuleKey {
 
   float r, h;
 
-  CapsuleKey(SBodyDescriptor &desc) : r(desc.m_fRadius), h(desc.m_fHeight) {}
+  CapsuleKey(const SBodyDescriptor &desc)
+      : r(desc.m_fRadius), h(desc.m_fHeight) {}
 
-  bool operator==(const CapsuleKey &other) {
+  CapsuleKey(const CapsuleKey &other) : r(other.r), h(other.h) {}
+
+  bool operator==(const CapsuleKey &other) const {
     return r == other.r && h == other.h;
   }
 };
@@ -51,10 +56,9 @@ template <> struct hash<eHaz::BoxKey> {
 };
 
 template <> struct hash<eHaz::CapsuleKey> {
-  size_t operator()(const eHaz::CapsuleKey &k) const {
-    size_t h1 = hash<float>()(k.h);
-    size_t h2 = hash<float>()(k.r);
-
+  size_t operator()(const eHaz::CapsuleKey &k) const noexcept {
+    size_t h1 = std::hash<float>{}(k.r);
+    size_t h2 = std::hash<float>{}(k.h);
     return h1 ^ (h2 << 1);
   }
 };
@@ -76,11 +80,15 @@ public:
 
   void SetGravity(glm::vec3 p_v3Gravity);
 
-  glm::mat4 GetTransform();
-  void SetTransform(glm::vec4 p_mat4Transform);
+  TransformComponent GetTransform(JPH::BodyID p_jbidBodyID);
+  void SetTransform(TransformComponent *p_tcComponent,
+                    RigidBodyComponent *p_rcComponent);
 
   void AddForce(JPH::BodyID p_bidBody, glm::vec3 p_v3Force);
   void AddImpulse(JPH::BodyID p_bidBody, glm::vec3 p_v3Impulse);
+  void AddTorque(JPH::BodyID p_bidBody, glm::vec3 p_v3Torque);
+  void AddAngularImpulse(JPH::BodyID p_bidBody, glm::vec3 p_v3AngularImpulse);
+
   void SetLinearVelocity(JPH::BodyID p_bidBody, glm::vec3 p_v3Velocity);
   glm::vec3 GetLinearVelocity(JPH::BodyID p_bidBody);
 
@@ -90,13 +98,26 @@ public:
 
   void SetCameraPosition(glm::vec3 p_v3CamPos);
 
+  std::string GetBodyDebugString(JPH::BodyID id);
+
   void ProcessQueues(Scene &p_sCurrentScene);
+
+  void DrawDebug(JPH::BodyManager::DrawSettings p_dsSettings);
+
+  bool IsSimulating() { return m_bIsSimulating; }
+
+  void SetSimulationStatus(bool p_bStatus) { m_bIsSimulating = p_bStatus; }
+
+  std::string GetStats();
+
+private:
+  JPH::ShapeRefC CreateShapeFromDesc(SBodyDescriptor p_bdDescription);
 
 private:
   std::vector<SActivationEvent> m_vActivationQueue;
   std::vector<SBodyDestructionEvent> m_vDestructionQueue;
   std::vector<SBodyCreationEvent> m_vCreationQueue;
-  std::vector<SContactEvent> m_vContactQueue;
+  // std::vector<SContactEvent> m_vContactQueue;
 
 private:
   std::unordered_map<BoxKey, JPH::ShapeRefC> m_umBoxShapes;
@@ -109,10 +130,13 @@ private:
   std::unordered_map<ConvexHullHandle, JPH::ShapeRefC> m_umConvexHulls;
 
 private:
+  bool m_bIsSimulating = false;
+
+  std::unique_ptr<C_ContactListener> m_clContactListener;
+
   glm::vec3 m_v3DefaultGravity = {0.0f, -9.81f, 0.0f};
 
-  std::unique_ptr<CPhysicsDebugRenderer> p_debug_renderer =
-      std::make_unique<CPhysicsDebugRenderer>();
+  std::unique_ptr<CPhysicsDebugRenderer> p_debug_renderer;
 
   static bool AssertFailedImpl(const char *inExpression, const char *inMessage,
                                const char *inFile, uint32_t inLine);

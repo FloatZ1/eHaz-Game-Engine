@@ -13,7 +13,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 #option(BUILD_SHARED_LIBS "Build shared instead of static libraries" ON)
-add_compile_definitions(PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}")
+add_compile_definitions(PROJECT_ROOT_DIR="${CMAKE_SOURCE_DIR}" JPH_DEBUG_RENDERER)
 
 # ────────────────────────────────────────────────
 # Add dependency as a subdirectory
@@ -34,19 +34,22 @@ FetchContent_Declare(
 )
 
 
-
+set(CPP_RTTI_ENABLED ON CACHE BOOL "" FORCE)
+set(JPH_DEBUG_RENDERER ON CACHE BOOL "" FORCE)
 
 FetchContent_Declare(
         JoltPhysics
         GIT_REPOSITORY "https://github.com/jrouwe/JoltPhysics"
-        GIT_TAG "v5.5.0"
+        GIT_TAG v5.5.0
 		SOURCE_SUBDIR "Build"
 )
+
+
 FetchContent_MakeAvailable(JoltPhysics)
 FetchContent_MakeAvailable(EnTT)
-
-
-
+set(CROSS_PLATFORM_DETERMINISTIC ON)
+set(CPP_RTTI_ENABLED ON)
+ target_compile_definitions(Jolt PUBLIC JPH_DEBUG_RENDERER )
 #elseif(WIN32)
 
  #find_package(EnTT REQUIRED)   

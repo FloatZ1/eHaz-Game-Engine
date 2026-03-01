@@ -4,6 +4,8 @@
 #include "Core/AssetSystem/Asset.hpp"
 #include "Input/KeyCodes.hpp"
 #include "Input/MouseCodes.hpp"
+#include <Physics/JoltInclude.hpp>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -28,7 +30,8 @@ enum EventType {
   EVENT_REQUEST_RESOURCE = 10,
   EVENT_FULFILED_REQUESTED_RESOURCE = 11,
   EVENT_REQUEST_AVAILABLE_RESOURCES = 12,
-  EVENT_FULFILED_REQUESTED_AVAILABLE_RESOURCES = 13
+  EVENT_FULFILED_REQUESTED_AVAILABLE_RESOURCES = 13,
+  EVENT_PHYSICS_COLLISION = 14
 };
 
 enum EventCategory {
@@ -39,7 +42,9 @@ enum EventCategory {
   EventCategoryKeyboard = BIT(2),
   EventCategoryMouse = BIT(3),
   EventCategoryMouseButton = BIT(4),
-  EventCategoryResource = BIT(5)
+  EventCategoryResource = BIT(5),
+  EventCategoryPhysics = BIT(6),
+  EventCategoryGamePlay = BIT(7)
 
 };
 
@@ -70,6 +75,29 @@ struct ResourceInfo {
   std::string path;
   ResourceType type;
 };
+
+struct SContactEvent : public Event {
+
+  JPH::BodyID m_bidBody1;
+  JPH::BodyID m_bidBody2;
+
+  uint32_t m_uiSceneObjectID_1;
+  uint32_t m_uiSceneObjectID_2;
+
+  enum class Type { Begin, Stay, End } m_tType;
+
+  std::vector<glm::vec3> m_v3ContactPoints;
+
+  std::vector<glm::vec3> m_v3RelativeContactPoints;
+  float m_fPenetrationDepth;
+
+  glm::vec3 m_v3ContactNormal;
+
+  EventType GetEventType() override { EVENT_PHYSICS_COLLISION; }
+
+  int GetEventCategories() override { return EventCategoryPhysics; }
+};
+
 class RequestResourceListEvent : public Event {
 public:
   ResourceType resourceType;

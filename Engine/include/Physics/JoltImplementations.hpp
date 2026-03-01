@@ -1,7 +1,13 @@
 #ifndef EHAZ_PHYSICS_JOLT_IMPLEMENTATION
 #define EHAZ_PHYSICS_JOLT_IMPLEMENTATION
 
+#include "Core/Event.hpp"
+#include "Core/EventQueue.hpp"
+#include "Jolt/Physics/Body/BodyInterface.h"
 #include "JoltInclude.hpp"
+#include "Jolt_Helpers.hpp"
+#include <ios>
+#include <memory>
 
 // TODO: Make own implementations as this is from the hello world example
 
@@ -86,6 +92,113 @@ public:
       JPH_ASSERT(false);
       return false;
     }
+  }
+};
+
+class C_ContactListener : public JPH::ContactListener {
+private:
+  JPH::PhysicsSystem &m_jpsPhysicsSystem;
+  std::mutex g_eventQueueMutex;
+
+public:
+  C_ContactListener(JPH::PhysicsSystem &p_jpsPhysicsSystem)
+      : m_jpsPhysicsSystem(p_jpsPhysicsSystem) {};
+
+  // See: ContactListener
+  virtual JPH::ValidateResult
+  OnContactValidate(const JPH::Body &inBody1, const JPH::Body &inBody2,
+                    JPH::RVec3Arg inBaseOffset,
+                    const JPH::CollideShapeResult &inCollisionResult) override {
+
+    // Allows you to ignore a contact before it is created (using layers to not
+    // make objects collide is cheaper!)
+
+    return JPH::ValidateResult::AcceptAllContactsForThisBodyPair;
+  }
+
+  virtual void OnContactAdded(const JPH::Body &inBody1,
+                              const JPH::Body &inBody2,
+                              const JPH::ContactManifold &inManifold,
+                              JPH::ContactSettings &ioSettings) override {
+
+    SContactEvent l_ceEvent;
+    l_ceEvent.m_bidBody1 = inBody1.GetID();
+    l_ceEvent.m_bidBody2 = inBody2.GetID();
+
+    l_ceEvent.m_uiSceneObjectID_1 = inBody1.GetUserData();
+    l_ceEvent.m_uiSceneObjectID_2 = inBody2.GetUserData();
+
+    l_ceEvent.m_tType = SContactEvent::Type::Begin;
+
+    l_ceEvent.m_fPenetrationDepth = inManifold.mPenetrationDepth;
+    l_ceEvent.m_v3ContactNormal =
+        PhysicsConversions::ToGLM(inManifold.mWorldSpaceNormal);
+
+    // TODO: add more points, dunno how since we aint got no number of hits to
+    // check
+
+    l_ceEvent.m_v3ContactPoints.push_back(PhysicsConversions::RVecToGLM(
+        inManifold.GetWorldSpaceContactPointOn1(0)));
+
+    l_ceEvent.m_v3ContactPoints.push_back(PhysicsConversions::RVecToGLM(
+        inManifold.GetWorldSpaceContactPointOn2(0)));
+
+    std::lock_guard<std::mutex> lock(g_eventQueueMutex);
+    EventQueue::s_Instance->push_back(
+        std::make_unique<SContactEvent>(l_ceEvent));
+  }
+
+  virtual void OnContactPersisted(const JPH::Body &inBody1,
+                                  const JPH::Body &inBody2,
+                                  const JPH::ContactManifold &inManifold,
+                                  JPH::ContactSettings &ioSettings) override {
+
+    SContactEvent l_ceEvent;
+    l_ceEvent.m_bidBody1 = inBody1.GetID();
+    l_ceEvent.m_bidBody2 = inBody2.GetID();
+
+    l_ceEvent.m_uiSceneObjectID_1 = inBody1.GetUserData();
+    l_ceEvent.m_uiSceneObjectID_2 = inBody2.GetUserData();
+
+    l_ceEvent.m_fPenetrationDepth = inManifold.mPenetrationDepth;
+    l_ceEvent.m_v3ContactNormal =
+        PhysicsConversions::ToGLM(inManifold.mWorldSpaceNormal);
+
+    // TODO: add more points, dunno how since we aint got no number of hits to
+    // check
+
+    l_ceEvent.m_v3ContactPoints.push_back(PhysicsConversions::RVecToGLM(
+        inManifold.GetWorldSpaceContactPointOn1(0)));
+
+    l_ceEvent.m_v3ContactPoints.push_back(PhysicsConversions::RVecToGLM(
+        inManifold.GetWorldSpaceContactPointOn2(0)));
+
+    l_ceEvent.m_tType = SContactEvent::Type::Stay;
+
+    std::lock_guard<std::mutex> lock(g_eventQueueMutex);
+    EventQueue::s_Instance->push_back(
+        std::make_unique<SContactEvent>(l_ceEvent));
+  }
+
+  virtual void
+  OnContactRemoved(const JPH::SubShapeIDPair &inSubShapePair) override {
+
+    SContactEvent l_ceEvent;
+    l_ceEvent.m_tType = SContactEvent::Type::End;
+    l_ceEvent.m_bidBody1 = inSubShapePair.GetBody1ID();
+    l_ceEvent.m_bidBody2 = inSubShapePair.GetBody2ID();
+
+    JPH::BodyInterface &l_jbiBodyInterface =
+        m_jpsPhysicsSystem.GetBodyInterfaceNoLock();
+
+    l_ceEvent.m_uiSceneObjectID_1 =
+        l_jbiBodyInterface.GetUserData(l_ceEvent.m_bidBody1);
+
+    l_ceEvent.m_uiSceneObjectID_2 =
+        l_jbiBodyInterface.GetUserData(l_ceEvent.m_bidBody2);
+    std::lock_guard<std::mutex> lock(g_eventQueueMutex);
+    EventQueue::s_Instance->push_back(
+        std::make_unique<SContactEvent>(l_ceEvent));
   }
 };
 

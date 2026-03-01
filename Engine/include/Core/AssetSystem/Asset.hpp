@@ -15,9 +15,11 @@ namespace eHaz {
 struct SAssetHandle {
   uint32_t index = UINT32_MAX;
   uint32_t generation = 0;
-
-  SAssetHandle(SAssetHandle &other)
+  SAssetHandle() = default;
+  SAssetHandle(const SAssetHandle &other)
       : index(other.index), generation(other.generation) {};
+
+  bool operator==(const SAssetHandle &other) const = default;
 
 private:
   friend class boost::serialization::access;
@@ -161,7 +163,7 @@ struct SConvexHullAsset {
 
   std::string m_strPath;
 
-  std::vector<JPH::Vec3> m_vVertices;
+  std::vector<glm::vec3> m_vVertices;
 
 private:
   friend class boost::serialization::access;
@@ -177,7 +179,7 @@ struct SCollisionMeshAsset {
 
   std::string m_strPath;
 
-  std::vector<JPH::Vec3> m_vVertices;
+  std::vector<glm::vec3> m_vVertices;
 
   std::vector<uint32_t> m_vIndices;
 

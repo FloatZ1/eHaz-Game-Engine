@@ -1,10 +1,10 @@
 #include "Physics/Physics_Debug_Drawer.hpp"
+#include "Jolt_Helpers.hpp"
 #include "Renderer.hpp"
 #include "ShaderManager.hpp"
 #include "glad/glad.h"
 
 #include <string>
-
 namespace eHaz {
 void CDebugBatch::SetVertexAttributes() {
 
@@ -35,6 +35,10 @@ void CDebugBatch::SetVertexAttributes() {
                         (void *)offsetof(JPH::DebugRenderer::Vertex, mColor));
 
   glEnableVertexAttribArray(3);
+
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, 0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 CDebugBatch::CDebugBatch(const JPH::DebugRenderer::Vertex *inVertices,
                          int inVertexCount, const JPH::uint32 *inIndices,
@@ -177,6 +181,8 @@ void CDebugBatch::Draw(JPH::ColorArg inColor, bool p_bBindShader) {
   }
   glBindVertexArray(_vao);
   glDrawElements(GL_TRIANGLES, _indexCount, GL_UNSIGNED_INT, 0);
+
+  glBindVertexArray(0);
 }
 
 void CPhysicsDebugRenderer::DrawLine(JPH::RVec3Arg inFrom, JPH::RVec3Arg inTo,
@@ -263,10 +269,7 @@ void CPhysicsDebugRenderer::DrawGeometry(
     JPH::DebugRenderer::EDrawMode) {
   // Convert Jolt matrix to glm
 
-  glm::mat4 model;
-  for (int c = 0; c < 4; ++c)
-    for (int r = 0; r < 4; ++r)
-      model[c][r] = inModelMatrix(r, c);
+  glm::mat4 model = PhysicsConversions::ToGLMMat4(inModelMatrix);
 
   // Bind your shader
   eHazGraphics::ShaderManager::s_Instance->UseProgramme(
@@ -288,7 +291,7 @@ void CPhysicsDebugRenderer::DrawGeometry(
   }
 }
 
-void CPhysicsDebugRenderer::Initialize() {
+void CPhysicsDebugRenderer::Init() {
 
   m_sidGeometryDrawShader =
       eHazGraphics::ShaderManager::s_Instance->CreateShaderProgramme(
@@ -300,5 +303,9 @@ void CPhysicsDebugRenderer::Initialize() {
 }
 void CPhysicsDebugRenderer::SetCameraPosition(glm::vec3 p_v3CamPos) {
   m_jv3CameraPos = {p_v3CamPos.x, p_v3CamPos.y, p_v3CamPos.z};
+}
+CPhysicsDebugRenderer::CPhysicsDebugRenderer() {
+  Initialize();
+  Init();
 }
 } // namespace eHaz

@@ -7,6 +7,9 @@
 #include "DataStructs.hpp"
 #include "DataStructures.hpp"
 #include "GameObject.hpp"
+#include "Jolt/Physics/Body/MotionType.h"
+#include "Octree.hpp"
+#include "Physics/Physics.hpp"
 #include "Renderer.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
@@ -86,6 +89,22 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
   if (!transform)
     return;
 
+  auto *rigidBodyComponent = TryGetComponent<RigidBodyComponent>(node.index);
+
+  if (rigidBodyComponent != nullptr) {
+
+    if (rigidBodyComponent->m_jmtMotionType != JPH::EMotionType::Static) {
+      TransformComponent ll_tcTransformComponent =
+          PhysicsEngine::s_Instance->GetTransform(
+              rigidBodyComponent->m_jbidBodyID);
+
+      transform->worldPosition = ll_tcTransformComponent.worldPosition;
+      transform->worldRotation = ll_tcTransformComponent.worldRotation;
+
+      return;
+    }
+  }
+
   if (node.parent != UINT32_MAX) {
     auto *parentTransform = TryGetComponent<TransformComponent>(
         scene_graph.GetObject(node.parent).index);
@@ -110,6 +129,14 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
     transform->worldRotation = transform->localRotation;
     transform->worldScale = transform->localScale;
   }
+
+  if (rigidBodyComponent != nullptr) {
+
+    PhysicsEngine::s_Instance->SetTransform(transform, rigidBodyComponent);
+
+    return;
+  }
+
   auto *model = TryGetComponent<ModelComponent>(node.index);
   if (model) {
 
@@ -264,7 +291,8 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
   snapshot.entities(adapter)
       .component<TransformComponent>(adapter)
       .component<ModelComponent>(adapter)
-      .component<CameraComponent>(adapter);
+      .component<CameraComponent>(adapter)
+      .component<RigidBodyComponent>(adapter);
 }
 
 bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
@@ -273,6 +301,15 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     return false;
 
   try {
+
+    auto oldView = m_registry.view<RigidBodyComponent>();
+
+    for (auto &entity : oldView) {
+
+      PhysicsEngine::s_Instance->DestroyBody(
+          m_registry.get<RigidBodyComponent>(entity).m_jbidBodyID);
+    }
+
     boost::archive::text_iarchive ar(file);
 
     ar & sceneName;
@@ -293,7 +330,26 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     loader.entities(adapter)
         .component<TransformComponent>(adapter)
         .component<ModelComponent>(adapter)
-        .component<CameraComponent>(adapter);
+        .component<CameraComponent>(adapter)
+        .component<RigidBodyComponent>(adapter);
+
+    auto view = m_registry.view<RigidBodyComponent>();
+
+    for (auto &entity : view) {
+
+      auto &rigidBodyComponent = view.get<RigidBodyComponent>(entity);
+
+      PhysicsEngine::s_Instance->CreateBody(
+          rigidBodyComponent.m_uiSceneObjectOwnerID,
+          rigidBodyComponent.m_bdDescription);
+    }
+
+    m_otOctree = COctree();
+
+    for (auto &node : scene_graph.nodes) {
+
+      m_otOctree.Insert(*node);
+    }
 
     return true;
   } catch (std::exception &e) {

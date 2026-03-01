@@ -82,20 +82,29 @@ void Application::Run() {
 
     physics_engine.SetCameraPosition(renderer.cameraPosition);
 
+    if (physics_engine.IsSimulating())
+      physics_engine.StepSimulation(deltaTime);
+
     if (m_bEditorMode) {
       renderer.SetFrameBuffer(renderer.GetMainFBO());
       layerStack.RenderLayers();
 
-      if (m_bDebugDrawing)
+      if (m_bDebugDrawing) {
+
+        physics_engine.DrawDebug(m_dsSetting);
+
         renderer.DrawDebug();
+      }
       renderer.DefaultFrameBuffer();
 
       layerStack.RenderUILayer();
     } else {
       layerStack.RenderLayers();
 
-      if (m_bDebugDrawing)
+      if (m_bDebugDrawing) {
         renderer.DrawDebug();
+        physics_engine.DrawDebug(m_dsSetting);
+      }
     }
     renderer.SwapBuffers();
     // eventQueue.ClearHandledEvents();
@@ -105,6 +114,8 @@ void Application::Run() {
     eventQueue.ProcessSDLEvents(m_bEditorMode);
 
     l_bPreviousMode = m_bEditorMode;
+
+    physics_engine.ProcessQueues(currentScene);
   }
 }
 

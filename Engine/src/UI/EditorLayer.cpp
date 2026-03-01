@@ -5,8 +5,13 @@
 #include "Core/AssetSystem/Asset.hpp"
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "Core/Event.hpp"
+#include "DataStructs.hpp"
 #include "GameObject.hpp"
+#include "IconsCodicons.h"
+#include "Jolt/Physics/Body/MotionType.h"
 #include "OS_Dialogues.hpp"
+#include "Physics/Jolt_DataStructures.hpp"
+#include "Physics/Physics.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
 #include "entt/core/fwd.hpp"
@@ -23,6 +28,7 @@
 #include <boost/json/object.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/json/value_ref.hpp>
+#include <boost/variant2/variant.hpp>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -275,6 +281,32 @@ void SceneOptionsMenu(bool *open) {
   }
 }
 
+void DebugOptionsWindow(bool *open) {
+  if (!*open)
+    return;
+  if (ImGui::Begin("Debug options window")) {
+
+    static bool s_bDrawDebug =
+        eHaz_Core::Application::instance->GetDebugDrawingStatus();
+    if (ImGui::Checkbox("Debug drawing", &s_bDrawDebug)) {
+      eHaz_Core::Application::instance->SetDebugDrawingStatus(s_bDrawDebug);
+    }
+
+    auto &p_dsSetting = eHaz_Core::Application::instance->m_dsSetting;
+
+    ImGui::Checkbox("Draw AABBs", &p_dsSetting.mDrawBoundingBox);
+    ImGui::Checkbox("Draw Object Names",
+                    &p_dsSetting.mDrawCenterOfMassTransform);
+
+    ImGui::Checkbox("Draw Object Shapes", &p_dsSetting.mDrawShape);
+    ImGui::Checkbox("Draw Object Velocities", &p_dsSetting.mDrawVelocity);
+    if (ImGui::Button("Close", ImVec2(80.0f, 0))) {
+      *open = false;
+    }
+    ImGui::End();
+  }
+}
+
 void EditorUILayer::DrawMenuBar() {
   if (ImGui::BeginMenuBar()) {
 
@@ -334,6 +366,10 @@ void EditorUILayer::DrawMenuBar() {
 
       if (ImGui::MenuItem("Shader spec creator")) {
         m_showShaderSpecWindow = true;
+      }
+
+      if (ImGui::MenuItem("Debug options")) {
+        m_showDebugOptions = true;
       }
 
       ImGui::EndMenu();
@@ -439,8 +475,55 @@ void EditorUILayer::OnCreate() {
       eHazGraphics::Renderer::r_instance->p_window->GetWindowPtr(),
       eHazGraphics::Renderer::r_instance->p_window->GetOpenGLContext());
   ImGui_ImplOpenGL3_Init("#version 460");
+
+  std::string l_strIconPath = PROJECT_ROOT_DIR "/Engine/include/UI/Icons/";
+
+  for (auto &l_item : std::filesystem::directory_iterator(l_strIconPath)) {
+
+    if (l_item.path().extension() == ".png") {
+
+      std::string a = l_item.path().filename().string();
+
+      m_umUiImages[l_item.path().filename().string()] =
+          std::make_unique<eHazGraphics::Texture2D>(l_item.path().string());
+    }
+  }
+
+  io.Fonts->AddFontDefault(); // base font
+
+  static const ImWchar icon_ranges[] = {ICON_MIN_CI, ICON_MAX_16_CI, 0};
+
+  float l_iIconSize = 13.0f;
+
+  m_fcSymbolConfig.PixelSnapH = true;
+  m_fcSymbolConfig.MergeMode = true;
+  m_fcSymbolConfig.GlyphMinAdvanceX = l_iIconSize * 2.0f / 3.0f;
+  io.Fonts->AddFontFromFileTTF(PROJECT_ROOT_DIR
+                               "/Engine/include/UI/" FONT_ICON_FILE_NAME_CI,
+                               l_iIconSize, &m_fcSymbolConfig, icon_ranges);
 }
 
+void DrawSceneButtonDock() {
+  if (ImGui::Begin("Scene button dock")) {
+    if (!PhysicsEngine::s_Instance->IsSimulating()) {
+      if (ImGui::Button(ICON_CI_PLAY)) {
+
+        eHaz_Core::Application::instance->SaveSceneToDisk(
+            PROJECT_ROOT_DIR "/bin/temp/scene_saveState.scene");
+
+        PhysicsEngine::s_Instance->SetSimulationStatus(true);
+      }
+    } else {
+      if (ImGui::Button("||")) {
+        PhysicsEngine::s_Instance->SetSimulationStatus(false);
+
+        eHaz_Core::Application::instance->LoadSceneFromDisk(
+            PROJECT_ROOT_DIR "/bin/temp/scene_saveState.scene");
+      }
+    }
+    ImGui::End();
+  }
+}
 void EditorUILayer::OnRender() {
 
   // --- Start a new ImGui frame ---
@@ -485,10 +568,12 @@ void EditorUILayer::OnRender() {
 
   // --- Panels ---
   DrawGameViewPort();
-  DrawSceneHierarchy(); // after deletion something happens here that
-                        // causes the
-  DrawInspectWindow();  // segfault
-
+  DrawSceneHierarchy();
+  DebugOptionsWindow(&m_showDebugOptions);
+  DrawInspectWindow();
+  DrawContentBrowser();
+  DrawSceneButtonDock();
+  DrawFolderBrowser();
   ImGui::Render();
   ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -714,6 +799,312 @@ void DrawTransformComponentMenu(uint32_t selectedNode,
   }
 }
 
+void DrawBodyDescriptorProperties(uint32_t selectedNode,
+                                  std::unique_ptr<GameObject> &node,
+                                  Scene &scene,
+                                  SBodyDescriptor &p_bdDescription) {
+
+  const char *l_strEnumNames[] = {"Box", "Sphere", "ConvexHull", "Mesh",
+                                  "Capsule"};
+
+  int currentIndex = static_cast<int>(p_bdDescription.m_psShape);
+
+  if (ImGui::BeginCombo("Select Shape", l_strEnumNames[currentIndex])) {
+    for (int n = 0; n < IM_ARRAYSIZE(l_strEnumNames); ++n) {
+      bool isSelected = (currentIndex == n);
+
+      if (ImGui::Selectable(l_strEnumNames[n], isSelected)) {
+        p_bdDescription.m_psShape = static_cast<EPhysicsShape>(n);
+      }
+
+      if (isSelected)
+        ImGui::SetItemDefaultFocus();
+    }
+
+    ImGui::EndCombo();
+  }
+  CAssetSystem &l_asAssetSystem =
+      eHaz_Core::Application::instance->GetAssetSystem();
+  switch (p_bdDescription.m_psShape) {
+
+  case EPhysicsShape::Box: {
+
+    ImGui::InputFloat3("Half Extents", &p_bdDescription.m_v3HalfExtents.x);
+
+  } break;
+
+  case EPhysicsShape::Sphere: {
+
+    ImGui::InputFloat("Radius", &p_bdDescription.m_fRadius);
+
+  } break;
+  case EPhysicsShape::ConvexHull: {
+
+    auto &l_rbcRigidBodyComponent =
+        scene.GetComponent<RigidBodyComponent>(selectedNode);
+
+    auto &l_vConvexHulls = l_asAssetSystem.GetAllHulls();
+
+    ConvexHullHandle l_chhSelectedHandle =
+        l_rbcRigidBodyComponent.m_bdDescription.m_chhHullHandle;
+
+    if (ImGui::Button("Select Convex Hull")) {
+
+      ImGui::OpenPopup("ConvexHullSelectPopup");
+    }
+
+    if (ImGui::BeginPopup("ConvexHullSelectPopup")) {
+
+      for (size_t i = 0; i < l_vConvexHulls.size(); i++) {
+
+        auto &l_asConvexHull = l_vConvexHulls[i];
+        if (!l_asConvexHull.alive)
+          continue;
+
+        bool isSelected =
+            (l_chhSelectedHandle.index == i &&
+             l_chhSelectedHandle.generation == l_asConvexHull.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asConvexHull.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+
+          l_chhSelectedHandle.index = i;
+          l_chhSelectedHandle.generation = l_asConvexHull.generation;
+
+          l_rbcRigidBodyComponent.m_bdDescription.m_chhHullHandle =
+              l_chhSelectedHandle;
+
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidModel(l_chhSelectedHandle)) {
+      ImGui::Text(
+          "Current: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetConvexHull(l_chhSelectedHandle)->m_strPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current: None");
+    }
+  } break;
+  case EPhysicsShape::Mesh: {
+
+    auto &l_rbcRigidBodyComponent =
+        scene.GetComponent<RigidBodyComponent>(selectedNode);
+
+    auto &l_vCollisionMeshes = l_asAssetSystem.GetAllCollisionMeshes();
+
+    CollisionMeshHandle l_chhSelectedHandle =
+        l_rbcRigidBodyComponent.m_bdDescription.m_cmhMeshHandle;
+
+    if (ImGui::Button("Select Collision mesh")) {
+
+      ImGui::OpenPopup("CollisionMeshSelectPopup");
+    }
+
+    if (ImGui::BeginPopup("CollisionMeshSelectPopup")) {
+
+      for (size_t i = 0; i < l_vCollisionMeshes.size(); i++) {
+
+        auto &l_asCollisionMesh = l_vCollisionMeshes[i];
+        if (!l_asCollisionMesh.alive)
+          continue;
+
+        bool isSelected =
+            (l_chhSelectedHandle.index == i &&
+             l_chhSelectedHandle.generation == l_asCollisionMesh.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asCollisionMesh.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+
+          l_chhSelectedHandle.index = i;
+          l_chhSelectedHandle.generation = l_asCollisionMesh.generation;
+
+          l_rbcRigidBodyComponent.m_bdDescription.m_chhHullHandle =
+              l_chhSelectedHandle;
+
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidModel(l_chhSelectedHandle)) {
+      ImGui::Text(
+          "Current: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetCollisionMesh(l_chhSelectedHandle)->m_strPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current: None");
+    }
+
+  } break;
+  case EPhysicsShape::Capsule: {
+
+    ImGui::InputFloat("Radius", &p_bdDescription.m_fRadius);
+    ImGui::InputFloat("Height", &p_bdDescription.m_fHeight);
+  } break;
+  }
+}
+
+void DrawRigidBodyComponentMenu(uint32_t selectedNode,
+                                std::unique_ptr<GameObject> &node,
+                                Scene &scene) {
+
+  RigidBodyComponent &l_rbcRigidBodyComponent =
+      scene.GetComponent<RigidBodyComponent>(selectedNode);
+
+  if (ImGui::CollapsingHeader("RigidBodyComponent menu##ui")) {
+    ImGui::SeparatorText("");
+
+    if (ImGui::Button("Create Body")) {
+
+      if (!l_rbcRigidBodyComponent.m_jbidBodyID.IsInvalid()) {
+        PhysicsEngine::s_Instance->DestroyBody(
+            l_rbcRigidBodyComponent.m_jbidBodyID);
+      }
+
+      PhysicsEngine::s_Instance->CreateBody(
+          selectedNode, l_rbcRigidBodyComponent.m_bdDescription);
+    }
+
+    ImGui::DragFloat("Mass", &l_rbcRigidBodyComponent.m_Mass, 0.1f, 0.0f,
+                     10000.0f);
+    ImGui::DragFloat("Friction", &l_rbcRigidBodyComponent.m_Friction, 0.01f,
+                     0.0f, 1.0f);
+    ImGui::DragFloat("Restitution", &l_rbcRigidBodyComponent.m_Restitution,
+                     0.01f, 0.0f, 1.0f);
+    ImGui::DragFloat("Linear Damping", &l_rbcRigidBodyComponent.m_LinearDamping,
+                     0.01f, 0.0f, 10.0f);
+    ImGui::DragFloat("Angular Damping",
+                     &l_rbcRigidBodyComponent.m_AngularDamping, 0.01f, 0.0f,
+                     10.0f);
+    ImGui::Separator();
+
+    ImGui::Text("Lock Position");
+    ImGui::Checkbox("X##LockPosX", &l_rbcRigidBodyComponent.m_LockPositionX);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y##LockPosY", &l_rbcRigidBodyComponent.m_LockPositionY);
+    ImGui::SameLine();
+    ImGui::Checkbox("Z##LockPosZ", &l_rbcRigidBodyComponent.m_LockPositionZ);
+
+    ImGui::Text("Lock Rotation");
+    ImGui::Checkbox("X##LockRotX", &l_rbcRigidBodyComponent.m_LockRotationX);
+    ImGui::SameLine();
+    ImGui::Checkbox("Y##LockRotY", &l_rbcRigidBodyComponent.m_LockRotationY);
+    ImGui::SameLine();
+    ImGui::Checkbox("Z##LockRotZ", &l_rbcRigidBodyComponent.m_LockRotationZ);
+
+    ImGui::Separator();
+    {
+      static const char *s_LayerNames[] = {"NON_MOVING", "MOVING"};
+
+      // Your component stores this:
+      int &currentLayer =
+          reinterpret_cast<int &>(l_rbcRigidBodyComponent.m_uiLayer);
+      // OR better: store m_uiLayer as int directly
+
+      if (ImGui::BeginCombo("Layer", s_LayerNames[currentLayer])) {
+        for (int i = 0; i < IM_ARRAYSIZE(s_LayerNames); ++i) {
+          bool selected = (currentLayer == i);
+
+          if (ImGui::Selectable(s_LayerNames[i], selected)) {
+            currentLayer = i;
+          }
+
+          if (selected)
+            ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndCombo();
+      }
+      l_rbcRigidBodyComponent.m_uiLayer = currentLayer;
+    }
+
+    {
+      static const char *s_motionNames[] = {"Static", "Kinematic", "Dynamic"};
+
+      // Your component stores this:
+      int &currentMotion =
+          reinterpret_cast<int &>(l_rbcRigidBodyComponent.m_jmtMotionType);
+      // OR better: store m_uiLayer as int directly
+
+      if (ImGui::BeginCombo("Motion type", s_motionNames[currentMotion])) {
+        for (int i = 0; i < IM_ARRAYSIZE(s_motionNames); ++i) {
+          bool selected = (currentMotion == i);
+
+          if (ImGui::Selectable(s_motionNames[i], selected)) {
+            currentMotion = i;
+          }
+
+          if (selected)
+            ImGui::SetItemDefaultFocus();
+        }
+        switch (currentMotion) {
+        case 0: {
+          l_rbcRigidBodyComponent.m_jmtMotionType = JPH::EMotionType::Static;
+        } break;
+        case 1: {
+
+          l_rbcRigidBodyComponent.m_jmtMotionType = JPH::EMotionType::Kinematic;
+        } break;
+        case 2: {
+
+          l_rbcRigidBodyComponent.m_jmtMotionType = JPH::EMotionType::Dynamic;
+        } break;
+        }
+        ImGui::EndCombo();
+      }
+    }
+
+    // ─────────────────────────────
+    // Flags
+    // ─────────────────────────────
+    ImGui::Checkbox("Is Sensor", &l_rbcRigidBodyComponent.m_IsSensor);
+    ImGui::Checkbox("Start Active", &l_rbcRigidBodyComponent.m_StartActive);
+
+    ImGui::Separator();
+    static bool l_bDebugDraw = false;
+    ImGui::Checkbox("Display Collsion Shape ##rb", &l_bDebugDraw);
+
+    if (l_bDebugDraw) {
+      // PhysicsEngine::s_Instance->DrawDebug();
+      SDL_Log(PhysicsEngine::s_Instance->GetStats().c_str());
+    }
+
+    ImGui::Separator();
+    ImGui::DragFloat3("Collider position offset",
+                      &l_rbcRigidBodyComponent.m_v3ColliderPositionOffset.x);
+    ImGui::Separator();
+
+    DrawBodyDescriptorProperties(selectedNode, node, scene,
+                                 l_rbcRigidBodyComponent.m_bdDescription);
+
+    if (ImGui::CollapsingHeader("Body info##phys")) {
+
+      std::string debugInfo = PhysicsEngine::s_Instance->GetBodyDebugString(
+          l_rbcRigidBodyComponent.m_jbidBodyID);
+      ImGui::TextUnformatted(debugInfo.c_str());
+    }
+  }
+}
+
 void DrawModelComponentMenu(uint32_t selectedNode,
                             std::unique_ptr<GameObject> &node, Scene &scene) {
 
@@ -904,6 +1295,10 @@ void EditorUILayer::DrawInspectWindow() {
   if (node->HasComponentFlag(ComponentID::Model)) {
     DrawModelComponentMenu(selectedNode, node, scene);
   }
+  if (node->HasComponentFlag(ComponentID::Rigidbody)) {
+    DrawRigidBodyComponentMenu(selectedNode, node, scene);
+  }
+
   // AlignForWidth(ImGui::GetWindowWidth());
 
   ImGui::SeparatorText("");
@@ -926,6 +1321,9 @@ void EditorUILayer::DrawInspectWindow() {
         } break;
         case eHaz::ComponentID::Transform: {
           CALL_ADD_FUNCTION(TransformComponent)
+        } break;
+        case ComponentID::Rigidbody: {
+          CALL_ADD_FUNCTION(RigidBodyComponent);
         } break;
         }
 

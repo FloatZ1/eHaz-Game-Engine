@@ -24,6 +24,8 @@ struct AppSpec {
 class Application {
 
 public:
+  JPH::BodyManager::DrawSettings m_dsSetting;
+
   static Application *instance;
 
   Application(AppSpec spec);
@@ -54,13 +56,15 @@ public:
 
   bool LoadSceneFromDisk(std::string p_strPath);
 
+  bool GetDebugDrawingStatus() { return m_bDebugDrawing; }
+  void SetDebugDrawingStatus(bool p_bStatus) { m_bDebugDrawing = p_bStatus; }
+
   void Run();
 
   void Stop();
 
 private:
   friend class EditorUILayer;
-
   bool m_bEditorMode = false;
 
   bool m_bDebugDrawing = false;

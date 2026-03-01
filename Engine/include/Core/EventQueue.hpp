@@ -15,6 +15,9 @@ namespace eHaz {
 class EventQueue {
 
 public:
+  static std::unique_ptr<EventQueue> s_Instance;
+  EventQueue() { s_Instance.reset(this); }
+
   void push_back(std::unique_ptr<Event> event) {
     m_Events.push_back(std::move(event));
   }

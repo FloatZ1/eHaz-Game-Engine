@@ -1,5 +1,6 @@
 #ifndef EHAZ_EDITOR_UI
 #define EHAZ_EDITOR_UI
+#include "DataStructs.hpp"
 #include "FrameBuffers/FrameBuffer.hpp"
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -10,9 +11,11 @@
 #include <cmath>
 #include <memory>
 
+#include "UI/IconsCodicons.h"
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_log.h>
 #include <glad/glad.h>
+#include <unordered_map>
 #include <vector>
 
 static void PrintGLContextStatus(SDL_Window *window) {
@@ -45,18 +48,26 @@ namespace eHaz {
 
 class EditorUILayer : public Layer {
 
-  // index of the gameobject in scene_graph
+  std::unordered_map<std::string, std::unique_ptr<eHazGraphics::Texture2D>>
+      m_umUiImages;
+
   uint32_t selectedNode = 0;
   bool m_ShowSceneOptions = false;
   bool m_showShaderSpecWindow = false;
-
+  bool m_showDebugOptions = false;
   std::vector<std::string> m_vAvailableFlags;
+
+  ImFontConfig m_fcSymbolConfig;
 
   void DrawMenuBar();
 
   void DrawInspectWindow();
 
   void DrawSceneHierarchy();
+
+  void DrawContentBrowser();
+
+  void DrawFolderBrowser();
 
   void ShaderSpecCreationWindow(bool *open);
 

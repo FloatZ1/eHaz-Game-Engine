@@ -77,6 +77,7 @@ private:
     ar & isStatic;
     ar & isVisible;
     ar & entity;
+    ar & m_aabbVisibleBounds;
   }
 };
 

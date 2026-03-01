@@ -20,6 +20,43 @@
 using namespace eHazGraphics;
 
 namespace eHaz {
+bool CAssetSystem::isValidConvexHull(ConvexHullHandle p_Handle) {
+  if (p_Handle.index >= m_vConvexHullAssets.size())
+    return false;
+
+  SAssetSlot<SConvexHullAsset> &l_chAsset = m_vConvexHullAssets[p_Handle.index];
+
+  if (l_chAsset.generation == p_Handle.generation && l_chAsset.alive == true)
+    return true;
+  else
+    return false;
+}
+bool CAssetSystem::isValidCollisionMesh(CollisionMeshHandle p_Handle) {
+  if (p_Handle.index >= m_vCollisionMeshAssets.size())
+    return false;
+
+  SAssetSlot<SCollisionMeshAsset> &l_cmAsset =
+      m_vCollisionMeshAssets[p_Handle.index];
+
+  if (l_cmAsset.generation == p_Handle.generation && l_cmAsset.alive == true)
+    return true;
+  else
+    return false;
+}
+const SConvexHullAsset *CAssetSystem::GetConvexHull(ConvexHullHandle p_Handle) {
+  if (isValidConvexHull(p_Handle))
+    return &m_vConvexHullAssets[p_Handle.index].asset;
+  else
+    return nullptr;
+}
+
+const SCollisionMeshAsset *
+CAssetSystem::GetCollisionMesh(CollisionMeshHandle p_Handle) {
+  if (isValidCollisionMesh(p_Handle))
+    return &m_vCollisionMeshAssets[p_Handle.index].asset;
+  else
+    return nullptr;
+}
 std::shared_ptr<SCollisionMeshAsset>
 CAssetSystem::LoadCollisonMeshData(std::string p_strPath) {
   Assimp::Importer l_asmpImporter;
@@ -521,6 +558,34 @@ const SShaderAsset *CAssetSystem::GetShader(ShaderHandle p_Handle) {
   } else
     return nullptr;
 }
+
+void CAssetSystem::RemoveConvexHull(ConvexHullHandle p_Handle) {
+  if (isValidConvexHull(p_Handle)) {
+    m_freeConvexHullSlots.push_back(p_Handle.index);
+    m_vConvexHullAssets[p_Handle.index].alive = false;
+
+    auto &l_renderer = eHazGraphics::Renderer::r_instance;
+
+    auto &l_haHullAsset = m_vConvexHullAssets[p_Handle.index];
+
+    l_haHullAsset.asset.m_vVertices.clear();
+  }
+}
+void CAssetSystem::RemoveCollisionMesh(CollisionMeshHandle p_Handle) {
+
+  if (isValidCollisionMesh(p_Handle)) {
+    m_freeCollsionMeshSlots.push_back(p_Handle.index);
+    m_vCollisionMeshAssets[p_Handle.index].alive = false;
+
+    auto &l_renderer = eHazGraphics::Renderer::r_instance;
+
+    auto &l_cmAsset = m_vCollisionMeshAssets[p_Handle.index];
+
+    l_cmAsset.asset.m_vVertices.clear();
+    l_cmAsset.asset.m_vIndices.clear();
+  }
+}
+
 void CAssetSystem::RemoveModel(ModelHandle p_Handle) {
 
   if (isValidModel(p_Handle)) {

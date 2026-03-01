@@ -5,14 +5,15 @@
 #include "Animation/Animator.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 #include "DataStructs.hpp"
+#include "Jolt/Physics/Body/MotionType.h"
 #include "MeshManager.hpp"
 #include "Physics/Jolt_DataStructures.hpp"
 #include "Renderer.hpp"
 #include "Utils/Boost_GLM_Serialization.hpp"
 // #include "entt/core/hashed_string.hpp"
+#include "Physics/JoltImplementations.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
-#include <Jolt/Jolt.h>
 #include <ctime>
 #include <entt/core/hashed_string.hpp>
 #include <entt/entt.hpp>
@@ -107,9 +108,66 @@ private:
 struct ColliderComponent {};
 struct RigidBodyComponent {
   // jolt specific id
+
   JPH::BodyID m_jbidBodyID;
 
+  JPH::EMotionType m_jmtMotionType;
+
+  uint32_t m_uiLayer = Layers::NON_MOVING;
+
+  // ───── Physical Properties ─────
+  float m_Mass = 1.0f; // Only for dynamic
+  float m_Friction = 0.5f;
+  float m_Restitution = 0.0f; // Bounciness
+  float m_LinearDamping = 0.0f;
+  float m_AngularDamping = 0.0f;
+
+  // ───── Motion Constraints ─────
+  bool m_LockPositionX = false;
+  bool m_LockPositionY = false;
+  bool m_LockPositionZ = false;
+
+  bool m_LockRotationX = false;
+  bool m_LockRotationY = false;
+  bool m_LockRotationZ = false;
+
+  bool m_IsSensor = false;
+  bool m_StartActive = true;
+
+  glm::vec3 m_v3ColliderPositionOffset;
+
   SBodyDescriptor m_bdDescription;
+
+  uint32_t m_uiSceneObjectOwnerID = 0;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_jmtMotionType;
+    ar & m_uiLayer;
+    ar & m_Mass;
+
+    ar & m_Friction;
+    ar & m_Restitution;
+    ar & m_LinearDamping;
+    ar & m_AngularDamping;
+    ar & m_LockPositionX;
+    ar & m_LockPositionY;
+    ar & m_LockPositionZ;
+
+    ar & m_LockRotationX;
+    ar & m_LockRotationY;
+    ar & m_LockRotationZ;
+
+    ar & m_IsSensor;
+    ar & m_StartActive;
+    ar & m_bdDescription;
+    ar & m_v3ColliderPositionOffset;
+
+    ar & m_uiSceneObjectOwnerID;
+  }
 };
 struct TriggerZone {
   std::function<void(entt::entity)> callback;
@@ -153,7 +211,28 @@ static void register_components() {
   REGISTER_FIELD(ModelComponent, m_ShaderHandle);
   // RigidBodyComponent
   REGISTER_COMPONENT(RigidBodyComponent, ComponentID::Rigidbody);
+  REGISTER_FIELD(RigidBodyComponent, m_jbidBodyID);
 
+  REGISTER_FIELD(RigidBodyComponent, m_uiLayer);
+  REGISTER_FIELD(RigidBodyComponent, m_jmtMotionType);
+  REGISTER_FIELD(RigidBodyComponent, m_Mass);
+  REGISTER_FIELD(RigidBodyComponent, m_Friction);
+  REGISTER_FIELD(RigidBodyComponent, m_Restitution);
+  REGISTER_FIELD(RigidBodyComponent, m_LinearDamping);
+  REGISTER_FIELD(RigidBodyComponent, m_AngularDamping);
+
+  REGISTER_FIELD(RigidBodyComponent, m_LockPositionX);
+  REGISTER_FIELD(RigidBodyComponent, m_LockPositionY);
+  REGISTER_FIELD(RigidBodyComponent, m_LockPositionZ);
+
+  REGISTER_FIELD(RigidBodyComponent, m_LockRotationX);
+  REGISTER_FIELD(RigidBodyComponent, m_LockRotationY);
+  REGISTER_FIELD(RigidBodyComponent, m_LockRotationZ);
+
+  REGISTER_FIELD(RigidBodyComponent, m_bdDescription);
+
+  REGISTER_FIELD(RigidBodyComponent, m_IsSensor);
+  REGISTER_FIELD(RigidBodyComponent, m_StartActive);
   // CameraComponent
   REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
 

@@ -135,10 +135,14 @@ class AppLayer : public eHaz::Layer {
         asset_system.GetShader(defaultShader);
 
     SDL_Log("\n\n\n" eRESOURCES_PATH "\n\n\n");
-    std::string path = eRESOURCES_PATH "boombox.glb";
+    std::string path = eRESOURCES_PATH "building_01.glb";
+
+    std::string path2 = eRESOURCES_PATH "boombox.glb";
 
     eHaz::ModelHandle m_handle = asset_system.LoadModel(path);
 
+    eHaz::ModelHandle m_handle2 = asset_system.LoadModel(path2);
+    asset_system.LoadConvexHull(path);
     const eHaz::SModelAsset *model_asset = asset_system.GetModel(m_handle);
 
     model = model_asset->m_modelID;
@@ -199,7 +203,7 @@ class AppLayer : public eHaz::Layer {
         eHaz_Core::Application::instance->GetAssetSystem().GetShader(
             defaultShader);
 
-    if (defaultAssetMaterial)
+    /*if (defaultAssetMaterial)
       Renderer::r_instance->SubmitStaticModel(
           model, pos, defaultAssetMaterial->m_uiMaterialID,
           deafultAssetShader->m_hashedID, TypeFlags::BUFFER_STATIC_MESH_DATA);
@@ -207,7 +211,7 @@ class AppLayer : public eHaz::Layer {
       Renderer::r_instance->SubmitStaticModel(
           model, pos, 0, deafultAssetShader->m_hashedID,
           TypeFlags::BUFFER_STATIC_MESH_DATA);
-    }
+    } */
 
     // pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
 
@@ -222,8 +226,6 @@ class AppLayer : public eHaz::Layer {
 
 int main() {
 
-  std::cout << eRESOURCES_PATH "\n";
-
   eHaz_Core::AppSpec spec;
   spec.fullscreen = false;
   spec.title = "eHaz Game Engine";
@@ -234,6 +236,4 @@ int main() {
   app.push_layer<AppLayer>();
 
   app.Run();
-
-  std::cout << "testy tetst\n";
 }
