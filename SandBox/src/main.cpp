@@ -120,14 +120,13 @@ class AppLayer : public eHaz::Layer {
 
     defaultMat = asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat.json");
 
-    auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
-    // bullshit hack
+    // auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
 
-    this->mat = new std::pair<const std::vector<PBRMaterial> &, TypeFlags>(mat);
-    materials = Renderer::p_bufferManager->InsertNewDynamicData(
-        mat.first.data(), mat.first.size() * sizeof(PBRMaterial),
-        TypeFlags::BUFFER_TEXTURE_DATA);
-
+    /* this->mat = new std::pair<const std::vector<PBRMaterial> &,
+     TypeFlags>(mat); materials =
+     Renderer::p_bufferManager->InsertNewDynamicData( mat.first.data(),
+     mat.first.size() * sizeof(PBRMaterial), TypeFlags::BUFFER_TEXTURE_DATA);
+      */
     defaultShader =
         asset_system.LoadShader(eRESOURCES_PATH "default_shader.json");
 
@@ -186,10 +185,15 @@ class AppLayer : public eHaz::Layer {
                              (float)Renderer::r_instance->p_window->GetHeight(),
                          0.1f, 100.0f);
 
-    Renderer::r_instance->SetCameraPosition(camera.Position);
-    Renderer::r_instance->SetViewProjection(camera.GetViewMatrix(), projection);
-    Renderer::r_instance->UpdateDynamicData(
-        materials, mat->first.data(), mat->first.size() * sizeof(PBRMaterial));
+    if (!eHaz_Core::Application::instance->IsSimulating()) {
+
+      Renderer::r_instance->SetCameraPosition(camera.Position);
+      Renderer::r_instance->SetViewProjection(camera.GetViewMatrix(),
+                                              projection);
+    }
+    // Renderer::r_instance->UpdateDynamicData(
+    //     materials, mat->first.data(), mat->first.size() *
+    //     sizeof(PBRMaterial));
   }
   void OnRender() override {
 
@@ -203,21 +207,6 @@ class AppLayer : public eHaz::Layer {
         eHaz_Core::Application::instance->GetAssetSystem().GetShader(
             defaultShader);
 
-    /*if (defaultAssetMaterial)
-      Renderer::r_instance->SubmitStaticModel(
-          model, pos, defaultAssetMaterial->m_uiMaterialID,
-          deafultAssetShader->m_hashedID, TypeFlags::BUFFER_STATIC_MESH_DATA);
-    else {
-      Renderer::r_instance->SubmitStaticModel(
-          model, pos, 0, deafultAssetShader->m_hashedID,
-          TypeFlags::BUFFER_STATIC_MESH_DATA);
-    } */
-
-    // pos = glm::translate(pos, glm::vec3(0.0f, 1.0f, 1.0f));
-
-    // Renderer::r_instance->SubmitStaticModel(model, pos,
-    //                                         TypeFlags::BUFFER_STATIC_MESH_DATA);
-    //  Renderer::r_instance->RenderFrame(std::vector<DrawRange> DrawOrder)
     auto ranges = Renderer::p_renderQueue->SubmitRenderCommands();
 
     Renderer::r_instance->RenderFrame(ranges);

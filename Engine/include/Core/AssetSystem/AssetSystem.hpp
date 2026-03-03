@@ -106,7 +106,11 @@ public:
 
   void ValidateAndLoadSystem(CAssetSystem &p_asOther);
 
+  void Update();
+
 private:
+  eHazGraphics::SBufferRange m_brMaterialLocation;
+
   // Loads the model from disk
   std::shared_ptr<SCollisionMeshAsset>
   LoadCollisonMeshData(std::string p_strPath);

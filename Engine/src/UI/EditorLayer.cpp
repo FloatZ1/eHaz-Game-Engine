@@ -6,12 +6,14 @@
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "Core/Event.hpp"
 #include "DataStructs.hpp"
+#include "DataStructures.hpp"
 #include "GameObject.hpp"
 #include "IconsCodicons.h"
 #include "Jolt/Physics/Body/MotionType.h"
 #include "OS_Dialogues.hpp"
 #include "Physics/Jolt_DataStructures.hpp"
 #include "Physics/Physics.hpp"
+#include "Renderer.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
 #include "entt/core/fwd.hpp"
@@ -1451,8 +1453,137 @@ void DrawModelComponentMenu(uint32_t selectedNode,
   }
 }
 
+void DrawCameraComponentMenu(uint32_t selectedNode,
+                             std::unique_ptr<GameObject> &node, Scene &scene) {
+
+  if (ImGui::CollapsingHeader("Camera component")) {
+
+    CameraComponent *l_ccCameraComponent =
+        scene.TryGetComponent<CameraComponent>(selectedNode);
+
+    if (ImGui::Checkbox("Set as initial active camera",
+                        &l_ccCameraComponent->m_bActiveCamera)) {
+
+      if (l_ccCameraComponent->m_bActiveCamera) {
+
+        CameraComponent &l_ccOldCameraComponent =
+            scene.GetComponent<CameraComponent>(selectedNode);
+        l_ccOldCameraComponent.m_bActiveCamera = false;
+        scene.SetActiveCameraObject(selectedNode);
+        l_ccCameraComponent->m_bActiveCamera = true;
+      }
+    }
+
+    auto l_arrFrustumPoints = CalculateFrustumCorners(
+        *l_ccCameraComponent,
+        scene.GetComponent<TransformComponent>(selectedNode),
+        Renderer::r_instance->GetMainFBO().GetWidth(),
+        Renderer::r_instance->GetMainFBO().GetHeight());
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[0],
+                                        l_arrFrustumPoints[1], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[1],
+                                        l_arrFrustumPoints[3], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[3],
+                                        l_arrFrustumPoints[2], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[2],
+                                        l_arrFrustumPoints[0], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[4],
+                                        l_arrFrustumPoints[5], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[5],
+                                        l_arrFrustumPoints[7], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[7],
+                                        l_arrFrustumPoints[6], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[6],
+                                        l_arrFrustumPoints[4], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[0],
+                                        l_arrFrustumPoints[4], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[1],
+                                        l_arrFrustumPoints[5], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[2],
+                                        l_arrFrustumPoints[6], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+    Renderer::p_debugDrawer->SubmitLine(l_arrFrustumPoints[3],
+                                        l_arrFrustumPoints[7], 0.01,
+                                        {1.0f, 1.0f, 1.0f, 1.0f});
+
+    ImGui::Checkbox("Use custom aspect ratio",
+                    &l_ccCameraComponent->m_bUseCustomAspectRatio);
+    float width = 150 + ImGui::GetStyle().FramePadding.x * 2.0f;
+
+    ImGui::BeginDisabled(!l_ccCameraComponent->m_bUseCustomAspectRatio);
+
+    ImGui::SetNextItemWidth(width);
+    ImGui::InputInt("##apsect 1", &l_ccCameraComponent->m_iAspectRatio1);
+    ImGui::SameLine();
+    ImGui::Text(" : ");
+    ImGui::SameLine();
+
+    ImGui::SetNextItemWidth(width);
+    ImGui::InputInt("##apsect 2", &l_ccCameraComponent->m_iAspectRatio2);
+
+    l_ccCameraComponent->m_fAspectRatio = l_ccCameraComponent->m_iAspectRatio1 /
+                                          l_ccCameraComponent->m_iAspectRatio2;
+
+    ImGui::EndDisabled();
+
+    ImGui::DragFloat("near plane", &l_ccCameraComponent->m_fNearPlane);
+    ImGui::DragFloat("far plane", &l_ccCameraComponent->m_fFarPlane);
+    ImGui::SliderFloat("FOV", &l_ccCameraComponent->m_fFOV, 60, 120);
+
+    const std::string l_strEnumNames[2]{"Orthographic", "Perspective"};
+
+    uint8_t l_ui8CurrentProjection =
+        static_cast<uint8_t>(l_ccCameraComponent->m_ptProjectionType);
+    if (ImGui::BeginCombo(
+            "Projection type",
+            l_strEnumNames[static_cast<uint8_t>(
+                               l_ccCameraComponent->m_ptProjectionType)]
+                .c_str())) {
+
+      for (uint8_t i = 0; i < 2; i++) {
+
+        bool l_bSelected = (l_ui8CurrentProjection == i);
+
+        if (ImGui::Selectable(l_strEnumNames[i].c_str(), l_bSelected)) {
+          l_ui8CurrentProjection = i;
+        }
+
+        if (l_bSelected) {
+
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+
+      ImGui::EndCombo();
+    }
+
+    l_ccCameraComponent->m_ptProjectionType =
+        static_cast<EProjectionType>(l_ui8CurrentProjection);
+  }
+}
+
 #define CALL_ADD_FUNCTION(Type) scene.AddComponentPtr<Type>(selectedNode);
 
+#define CALL_REMOVE_FUNCTION(Type) scene.RemoveComponent<Type>(selectedNode);
 void EditorUILayer::DrawInspectWindow() {
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
   auto &sceneGraph = scene.scene_graph;
@@ -1470,7 +1601,9 @@ void EditorUILayer::DrawInspectWindow() {
   if (node->HasComponentFlag(ComponentID::Rigidbody)) {
     DrawRigidBodyComponentMenu(selectedNode, node, scene);
   }
-
+  if (node->HasComponentFlag(ComponentID::Camera)) {
+    DrawCameraComponentMenu(selectedNode, node, scene);
+  }
   // AlignForWidth(ImGui::GetWindowWidth());
 
   ImGui::SeparatorText("");
@@ -1496,6 +1629,9 @@ void EditorUILayer::DrawInspectWindow() {
         } break;
         case ComponentID::Rigidbody: {
           CALL_ADD_FUNCTION(RigidBodyComponent);
+        } break;
+        case ComponentID::Camera: {
+          CALL_ADD_FUNCTION(CameraComponent);
         } break;
         }
 

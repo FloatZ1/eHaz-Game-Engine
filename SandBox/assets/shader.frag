@@ -12,6 +12,8 @@ struct Material {
     sampler2D emission;
 
     float luminance;
+    float aPad;
+    float bPad;
 };
 
 layout(binding = 3, std430) readonly buffer ssbo3 {

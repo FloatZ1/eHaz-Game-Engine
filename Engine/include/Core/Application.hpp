@@ -44,6 +44,8 @@ public:
     }
   }
 
+  bool IsSimulating() { return physics_engine.IsSimulating(); }
+
   eHaz::Scene &getActiveScene() { return currentScene; }
 
   eHaz::CAssetSystem &GetAssetSystem() { return asset_system; }

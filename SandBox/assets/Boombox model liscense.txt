@@ -1,0 +1,10 @@
+model taken from https://sketchfab.com/3d-models/low-poly-boombox-ps1ps2-style-d9f19a9ddce04dac8586b34869d0c1ba
+
+under CC attribution license:
+ https://creativecommons.org/licenses/by/4.0/#ref-appropriate-credit
+
+creator: 
+Drillimpact
+
+
+the model is used for educational purposes in this project, and has only been converted to binary gltf format via Blender

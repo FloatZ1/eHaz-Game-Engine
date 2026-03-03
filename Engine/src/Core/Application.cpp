@@ -51,6 +51,15 @@ void Application::Run() {
 
     layerStack.NotifyEvents(eventQueue);
 
+    asset_system.Update();
+
+    if (IsSimulating()) {
+
+      renderer.SetCameraPosition(currentScene.GetActiveCameraPosition());
+      renderer.SetViewProjection(currentScene.GetActiveCameraViewMat4(),
+                                 currentScene.GetActiveCameraProjectionMat4());
+    }
+
     layerStack.UpdateLayers(deltaTime);
 
     eHaz::SFrustum l_fFrustum = eHaz::SFrustum::ExtractFrustum(
@@ -79,7 +88,7 @@ void Application::Run() {
       }
       accumulator -= FIXED_DT;
     }
-    SDL_Log(physics_engine.GetStats().c_str());
+    // SDL_Log(physics_engine.GetStats().c_str());
     currentScene.OnUpdate(deltaTime);
 
     renderer.UpdateRenderer(deltaTime);

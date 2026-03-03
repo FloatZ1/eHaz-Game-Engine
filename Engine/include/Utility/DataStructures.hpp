@@ -4,6 +4,7 @@
 #include "Animation/AnimatedModelManager.hpp"
 #include "DataStructs.hpp"
 #include "entt/fwd.hpp"
+#include <Components.hpp>
 #include <glm/glm.hpp>
 namespace eHaz {
 
@@ -128,6 +129,73 @@ struct SFrustum {
     return r;
   }
 };
+
+static std::array<glm::vec3, 8>
+CalculateFrustumCorners(const CameraComponent &camera,
+                        const TransformComponent &transform,
+                        float renderTargetWidth, float renderTargetHeight) {
+  std::array<glm::vec3, 8> corners;
+
+  // Step 1: Determine aspect ratio
+  float aspect;
+  if (camera.m_bUseCustomAspectRatio) {
+    if (camera.m_fAspectRatio > 0.0f)
+      aspect = camera.m_fAspectRatio;
+    else
+      aspect = float(camera.m_iAspectRatio1) / float(camera.m_iAspectRatio2);
+  } else {
+    aspect = renderTargetWidth / renderTargetHeight;
+  }
+
+  // Step 2: Compute near/far plane sizes
+  float nearHeight, nearWidth, farHeight, farWidth;
+
+  if (camera.m_ptProjectionType == EProjectionType::Perspective) {
+    float tanHalfFov = tan(glm::radians(camera.m_fFOV) * 0.5f);
+    nearHeight = 2.0f * camera.m_fNearPlane * tanHalfFov;
+    nearWidth = nearHeight * aspect;
+    farHeight = 2.0f * camera.m_fFarPlane * tanHalfFov;
+    farWidth = farHeight * aspect;
+  } else // Orthographic
+  {
+    // For orthographic, FOV is treated as vertical size
+    nearHeight = camera.m_fFOV;
+    nearWidth = nearHeight * aspect;
+    farHeight = camera.m_fFOV;
+    farWidth = farHeight * aspect;
+  }
+
+  // Step 3: Define corners in camera local space (-Z forward)
+  glm::vec3 ntl(-nearWidth / 2, nearHeight / 2, -camera.m_fNearPlane);
+  glm::vec3 ntr(nearWidth / 2, nearHeight / 2, -camera.m_fNearPlane);
+  glm::vec3 nbl(-nearWidth / 2, -nearHeight / 2, -camera.m_fNearPlane);
+  glm::vec3 nbr(nearWidth / 2, -nearHeight / 2, -camera.m_fNearPlane);
+
+  glm::vec3 ftl(-farWidth / 2, farHeight / 2, -camera.m_fFarPlane);
+  glm::vec3 ftr(farWidth / 2, farHeight / 2, -camera.m_fFarPlane);
+  glm::vec3 fbl(-farWidth / 2, -farHeight / 2, -camera.m_fFarPlane);
+  glm::vec3 fbr(farWidth / 2, -farHeight / 2, -camera.m_fFarPlane);
+
+  // Step 4: Transform corners to world space
+  glm::mat4 world = glm::translate(glm::mat4(1.0f), transform.worldPosition) *
+                    glm::mat4_cast(transform.worldRotation);
+
+  auto ToWorld = [&](const glm::vec3 &p) -> glm::vec3 {
+    glm::vec4 wp = world * glm::vec4(p, 1.0f);
+    return glm::vec3(wp);
+  };
+
+  corners[0] = ToWorld(ntl);
+  corners[1] = ToWorld(ntr);
+  corners[2] = ToWorld(nbl);
+  corners[3] = ToWorld(nbr);
+  corners[4] = ToWorld(ftl);
+  corners[5] = ToWorld(ftr);
+  corners[6] = ToWorld(fbl);
+  corners[7] = ToWorld(fbr);
+
+  return corners;
+}
 
 } // namespace eHaz
 

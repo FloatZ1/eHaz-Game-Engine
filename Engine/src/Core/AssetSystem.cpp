@@ -299,7 +299,6 @@ MaterialHandle CAssetSystem::LoadMaterial(std::string p_strPath) {
       l_mhHandle.index = l_uiSlotID;
 
       m_umMaterialHandles.emplace(p_strPath, l_mhHandle);
-      return l_mhHandle;
 
     } else {
 
@@ -309,9 +308,18 @@ MaterialHandle CAssetSystem::LoadMaterial(std::string p_strPath) {
       l_mhHandle.generation = l_asSlot.generation;
       l_mhHandle.index = l_uiSlotID;
       m_umMaterialHandles.emplace(p_strPath, l_mhHandle);
-      return l_mhHandle;
     }
 
+    auto l_materials =
+        Renderer::r_instance->p_materialManager->SubmitMaterials();
+    Renderer::p_bufferManager->ClearBuffer(TypeFlags::BUFFER_TEXTURE_DATA);
+
+    m_brMaterialLocation = Renderer::p_bufferManager->InsertNewDynamicData(
+        l_materials.first.data(),
+        l_materials.first.size() * sizeof(PBRMaterial),
+        TypeFlags::BUFFER_TEXTURE_DATA);
+
+    return l_mhHandle;
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
   }
@@ -618,6 +626,15 @@ void CAssetSystem::RemoveMaterial(MaterialHandle p_Handle) {
     l_renderer->p_materialManager->DeleteMaterial(
         l_maMaterial.asset.m_uiMaterialID);
     m_umMaterialHandles.erase(l_maMaterial.asset.m_strPath);
+
+    auto l_materials =
+        Renderer::r_instance->p_materialManager->SubmitMaterials();
+    Renderer::p_bufferManager->ClearBuffer(TypeFlags::BUFFER_TEXTURE_DATA);
+
+    m_brMaterialLocation = Renderer::p_bufferManager->InsertNewDynamicData(
+        l_materials.first.data(),
+        l_materials.first.size() * sizeof(PBRMaterial),
+        TypeFlags::BUFFER_TEXTURE_DATA);
   }
 }
 void CAssetSystem::RemoveTexture(TextureHandle p_Handle) {
@@ -916,7 +933,8 @@ void CAssetSystem::OnEvent(EventQueue &p_events) {
       const RequestResourceEvent *l_eCast =
           static_cast<const RequestResourceEvent *>(event.get());
 
-      // TODO: figure shit out
+      // make it load based on event info, uneeded atm since the scene takes
+      // care of that
 
     } break;
     }
@@ -1173,4 +1191,11 @@ void CAssetSystem::ReloadCollisionMesh(CollisionMeshHandle p_Handle) {
       m_vCollisionMeshAssets[p_Handle.index].asset.m_strPath);
 }
 
+void CAssetSystem::Update() {
+  auto l_materials = Renderer::r_instance->p_materialManager->SubmitMaterials();
+  Renderer::p_bufferManager->ClearBuffer(TypeFlags::BUFFER_TEXTURE_DATA);
+  Renderer::r_instance->UpdateDynamicData(
+      m_brMaterialLocation, l_materials.first.data(),
+      l_materials.first.size() * sizeof(PBRMaterial));
+}
 } // namespace eHaz

@@ -31,8 +31,7 @@ enum class ComponentID : uint32_t {
   Model = 1 << 1,
   Rigidbody = 1 << 2,
   Camera = 1 << 3,
-  Animator = 1 << 5,
-  TriggerZone = 1 << 6
+  Animator = 1 << 5
 };
 // class ComponentData {
 // public:
@@ -105,7 +104,6 @@ private:
   }
 };
 
-struct ColliderComponent {};
 struct RigidBodyComponent {
   // jolt specific id
 
@@ -169,10 +167,47 @@ private:
     ar & m_uiSceneObjectOwnerID;
   }
 };
-struct TriggerZone {
-  std::function<void(entt::entity)> callback;
+enum class EProjectionType : uint8_t {
+
+  Orthographics = 0,
+  Perspective = 1
+
 };
-struct CameraComponent {};
+
+struct CameraComponent {
+
+  bool m_bActiveCamera = false;
+
+  bool m_bUseCustomAspectRatio = false;
+  float m_fAspectRatio = 16 / 9;
+  float m_fFOV = 90.0f;
+  float m_fNearPlane = 0.1f;
+  float m_fFarPlane = 4.0f;
+
+  int m_iAspectRatio1 = 16;
+  int m_iAspectRatio2 = 9;
+
+  EProjectionType m_ptProjectionType = EProjectionType::Perspective;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+
+    ar & m_iAspectRatio1;
+    ar & m_iAspectRatio2;
+
+    ar & m_bUseCustomAspectRatio;
+
+    ar & m_fAspectRatio;
+    ar & m_bActiveCamera;
+    ar & m_fFOV;
+    ar & m_fNearPlane;
+    ar & m_fFarPlane;
+    ar & m_ptProjectionType;
+  }
+};
 struct ScriptComponent {};
 
 // ------------------- ComponentID -------------------
@@ -191,6 +226,19 @@ struct ScriptComponent {};
 // NOTE: WHEN ADDING NEW COMPONENTS ADD THEM INSIDE SCENE.HPP as well
 
 static void register_components() {
+  REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
+
+  REGISTER_FIELD(CameraComponent, m_fFOV);
+  REGISTER_FIELD(CameraComponent, m_fFarPlane);
+  REGISTER_FIELD(CameraComponent, m_fNearPlane);
+  REGISTER_FIELD(CameraComponent, m_ptProjectionType);
+  REGISTER_FIELD(CameraComponent, m_bUseCustomAspectRatio);
+  REGISTER_FIELD(CameraComponent, m_fAspectRatio);
+  REGISTER_FIELD(CameraComponent, m_iAspectRatio1);
+
+  REGISTER_FIELD(CameraComponent, m_iAspectRatio2);
+
+  REGISTER_FIELD(CameraComponent, m_bActiveCamera);
 
   // TransformComponent
   REGISTER_COMPONENT(TransformComponent, ComponentID::Transform)
@@ -234,7 +282,6 @@ static void register_components() {
   REGISTER_FIELD(RigidBodyComponent, m_IsSensor);
   REGISTER_FIELD(RigidBodyComponent, m_StartActive);
   // CameraComponent
-  REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
 
   // AnimatedModelComponent
   // RegisterComponent<AnimatedModelComponent, ComponentID::AnimatedModel)
@@ -249,8 +296,6 @@ static void register_components() {
   REGISTER_FIELD(AnimatorComponent, isLooping)
 
   // TriggerZone
-  REGISTER_COMPONENT(TriggerZone, ComponentID::TriggerZone);
-  REGISTER_FIELD(TriggerZone, callback)
 
   // ScriptComponent
   REGISTER_COMPONENT(ScriptComponent, ComponentID::None);
