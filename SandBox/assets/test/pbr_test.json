@@ -1,0 +1,7 @@
+{
+    "albedo": "test/w3_rust001_abd.png",
+    "normal": "test/w3_rust001_nrm.png",
+    "PRM": "test/w3_rust001_prm.png",
+    "emission": null,
+    "luminance": 0E0
+}

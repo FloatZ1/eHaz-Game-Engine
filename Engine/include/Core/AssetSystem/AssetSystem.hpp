@@ -106,6 +106,10 @@ public:
 
   void ValidateAndLoadSystem(CAssetSystem &p_asOther);
 
+  void ValidateMaterial(SAssetSlot<SMaterialAsset> &p_maMaterial);
+
+  void ValidateTexture(SAssetSlot<STextureAsset> &p_taTexture);
+
   void Update();
 
 private:
@@ -119,6 +123,9 @@ private:
 
   friend class boost::serialization::access;
   friend class CAssetSystem;
+
+  bool m_bInvalid = false;
+
   eHazGraphics::ShaderComboID m_scidDefaultModelShader;
   eHazGraphics::ShaderComboID m_scidDefaultAnimatedModelShader;
 

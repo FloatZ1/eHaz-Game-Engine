@@ -56,6 +56,8 @@ class EditorUILayer : public Layer {
   bool m_showShaderSpecWindow = false;
   bool m_showDebugOptions = false;
   bool m_showMatSpecCreator = false;
+  bool m_showRendererOptions = false;
+
   std::vector<std::string> m_vAvailableFlags;
 
   ImFontConfig m_fcSymbolConfig;
@@ -69,6 +71,8 @@ class EditorUILayer : public Layer {
   void DrawContentBrowser();
 
   void DrawFolderBrowser();
+
+  void RendererOptionsWindow(bool *open);
 
   void ShaderSpecCreationWindow(bool *open);
 

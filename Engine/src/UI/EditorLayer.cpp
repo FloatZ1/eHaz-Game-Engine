@@ -535,11 +535,30 @@ void EditorUILayer::DrawMenuBar() {
       if (ImGui::MenuItem("Debug options")) {
         m_showDebugOptions = true;
       }
+      if (ImGui::MenuItem("Renderer options")) {
+        m_showRendererOptions = true;
+      }
 
       ImGui::EndMenu();
     }
 
     ImGui::EndMenuBar();
+  }
+}
+void EditorUILayer::RendererOptionsWindow(bool *open) {
+  if (!*open)
+    return;
+
+  if (ImGui::Begin("Renderer options", open)) {
+
+    static bool l_bUseDeffered = false;
+
+    if (ImGui::Checkbox("Use deffered shading", &l_bUseDeffered)) {
+
+      eHaz_Core::Application::instance->SetDefferedState(l_bUseDeffered);
+    }
+
+    ImGui::End();
   }
 }
 void AlignForWidth(float width, float alignment = 0.5f) {
@@ -678,7 +697,7 @@ void DrawSceneButtonDock() {
         PhysicsEngine::s_Instance->SetSimulationStatus(true);
       }
     } else {
-      if (ImGui::Button("||")) {
+      if (ImGui::Button(ICON_CI_STOP)) {
         PhysicsEngine::s_Instance->SetSimulationStatus(false);
 
         eHaz_Core::Application::instance->LoadSceneFromDisk(
@@ -735,6 +754,7 @@ void EditorUILayer::OnRender() {
   DrawSceneHierarchy();
   DebugOptionsWindow(&m_showDebugOptions);
   MaterialSpecCreationWindow(&m_showMatSpecCreator);
+  RendererOptionsWindow(&m_showRendererOptions);
   DrawInspectWindow();
   DrawContentBrowser();
   DrawSceneButtonDock();
@@ -1527,6 +1547,11 @@ void DrawCameraComponentMenu(uint32_t selectedNode,
 
     ImGui::Checkbox("Use custom aspect ratio",
                     &l_ccCameraComponent->m_bUseCustomAspectRatio);
+    if (!l_ccCameraComponent->m_bUseCustomAspectRatio) {
+      l_ccCameraComponent->m_fAspectRatio =
+          Renderer::r_instance->GetMainFBO().GetWidth() /
+          Renderer::r_instance->GetMainFBO().GetHeight();
+    }
     float width = 150 + ImGui::GetStyle().FramePadding.x * 2.0f;
 
     ImGui::BeginDisabled(!l_ccCameraComponent->m_bUseCustomAspectRatio);
@@ -1540,8 +1565,9 @@ void DrawCameraComponentMenu(uint32_t selectedNode,
     ImGui::SetNextItemWidth(width);
     ImGui::InputInt("##apsect 2", &l_ccCameraComponent->m_iAspectRatio2);
 
-    l_ccCameraComponent->m_fAspectRatio = l_ccCameraComponent->m_iAspectRatio1 /
-                                          l_ccCameraComponent->m_iAspectRatio2;
+    l_ccCameraComponent->m_fAspectRatio =
+        static_cast<float>(l_ccCameraComponent->m_iAspectRatio1) /
+        static_cast<float>(l_ccCameraComponent->m_iAspectRatio2);
 
     ImGui::EndDisabled();
 

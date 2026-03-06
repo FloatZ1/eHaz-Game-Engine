@@ -179,10 +179,10 @@ struct CameraComponent {
   bool m_bActiveCamera = false;
 
   bool m_bUseCustomAspectRatio = false;
-  float m_fAspectRatio = 16 / 9;
+  float m_fAspectRatio = 16.0f / 9.0f;
   float m_fFOV = 90.0f;
-  float m_fNearPlane = 0.1f;
-  float m_fFarPlane = 4.0f;
+  float m_fNearPlane = 1.0f;
+  float m_fFarPlane = 100.0f;
 
   int m_iAspectRatio1 = 16;
   int m_iAspectRatio2 = 9;

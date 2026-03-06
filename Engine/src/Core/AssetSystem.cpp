@@ -126,7 +126,7 @@ void CAssetSystem::SetDefaultAnimatedModelShader(
 }
 ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
   std::string key = p_strPath + (p_bIsAnimated ? "#anim" : "#static");
-  if (m_umModelHandles.contains(key))
+  if (m_umModelHandles.contains(key) && m_bInvalid == false)
     return m_umModelHandles[key];
 
   auto &l_renderer = eHazGraphics::Renderer::r_instance;
@@ -195,7 +195,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
     l_asModel.asset = l_maLoadedModel;
     if (m_freeModelSlots.size() > 0) {
 
-      uint32_t l_uiSlotID = m_freeModelSlots[m_freeModelSlots.size() - 1];
+      uint32_t l_uiSlotID = m_freeModelSlots.back();
 
       l_asModel.generation = ++m_vModelAssets[l_uiSlotID].generation;
       l_mhHandle.index = l_uiSlotID;
@@ -224,7 +224,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
 
 MaterialHandle CAssetSystem::LoadMaterial(std::string p_strPath) {
 
-  if (m_umMaterialHandles.contains(p_strPath))
+  if (m_umMaterialHandles.contains(p_strPath) && m_bInvalid == false)
     return m_umMaterialHandles[p_strPath];
 
   MaterialHandle l_mhHandle;
@@ -373,7 +373,7 @@ TextureHandle CAssetSystem::LoadTexture(std::string p_strPath) {
 }
 ShaderHandle CAssetSystem::LoadShader(std::string p_strDescriptorPath) {
 
-  if (m_umShaderHandles.contains(p_strDescriptorPath))
+  if (m_umShaderHandles.contains(p_strDescriptorPath) && m_bInvalid == false)
     return m_umShaderHandles[p_strDescriptorPath];
 
   auto &l_renderer = eHazGraphics::Renderer::r_instance;
@@ -701,6 +701,7 @@ void CAssetSystem::ClearAll() {
   Renderer::p_AnimatedModelManager->ClearEverything();
   Renderer::p_materialManager->ClearMaterials();
   Renderer::p_meshManager->ClearEverything();
+  Renderer::p_materialManager->ClearMaterials();
 
   m_vModelAssets.clear();
   m_vMaterialAssets.clear();
@@ -1007,6 +1008,8 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
   m_freeConvexHullSlots = other.m_freeConvexHullSlots;
   m_freeCollsionMeshSlots = other.m_freeCollsionMeshSlots;
 
+  m_bInvalid = true;
+
   // -------- now validate + load --------
 
   // models
@@ -1044,37 +1047,24 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
       Renderer::p_shaderManager->CreateShaderProgramme(s.vertexPath.value(),
                                                        s.fragmentPath.value());
   }
-
-  // materials (patch IDs)
-  for (auto &material : m_vMaterialAssets) {
-    if (!material.alive)
-      continue;
-
-    if (Renderer::p_materialManager->isValidMaterial(
-            material.asset.m_strName)) {
-      material.asset.m_uiMaterialID =
-          Renderer::p_materialManager->GetMaterialID(material.asset.m_strName);
-    } else {
-      auto h = LoadMaterial(material.asset.m_strPath);
-      material.asset.m_uiMaterialID =
-          m_vMaterialAssets[h.index].asset.m_uiMaterialID;
-    }
-  }
-
   // textures (patch IDs)
   for (auto &texture : m_vTextureAssets) {
     if (!texture.alive)
       continue;
 
-    if (Renderer::p_materialManager->isValidTexture(texture.asset.m_strPath)) {
-      texture.asset.m_uiTextureID =
-          Renderer::p_materialManager->GetTextureID(texture.asset.m_strPath);
-    } else {
-      auto h = LoadTexture(texture.asset.m_strPath);
-      texture.asset.m_uiTextureID =
-          m_vTextureAssets[h.index].asset.m_uiTextureID;
-    }
+    ValidateTexture(texture);
   }
+  // materials (patch IDs)
+  for (size_t i = 0; i < m_vMaterialAssets.size(); i++) {
+
+    auto &material = m_vMaterialAssets[i];
+    if (!material.alive)
+      continue;
+
+    ValidateMaterial(material);
+  }
+
+  m_bInvalid = false;
 }
 
 CollisionMeshHandle
@@ -1197,5 +1187,53 @@ void CAssetSystem::Update() {
   Renderer::r_instance->UpdateDynamicData(
       m_brMaterialLocation, l_materials.first.data(),
       l_materials.first.size() * sizeof(PBRMaterial));
+}
+void CAssetSystem::ValidateMaterial(SAssetSlot<SMaterialAsset> &p_maMaterial) {
+  SMaterialSpec l_msSpec = MaterialSpecParser::ParseMaterialSpec(
+      MaterialSpecParser::LoadSpecJson(p_maMaterial.asset.m_strPath));
+
+  TextureHandle l_thAlbedoId, l_thNormalId, l_thEmissionId, l_thPRMId;
+  float l_fLuminance = 0.0f;
+
+  if (l_msSpec.m_strAlbedo != std::nullopt)
+    l_thAlbedoId = LoadTexture(eRESOURCES_PATH + l_msSpec.m_strAlbedo.value());
+
+  if (l_msSpec.m_strNormal != std::nullopt)
+    l_thNormalId = LoadTexture(eRESOURCES_PATH + l_msSpec.m_strNormal.value());
+  else
+    l_thNormalId = l_thAlbedoId;
+
+  if (l_msSpec.m_strEmision != std::nullopt)
+    l_thEmissionId =
+        LoadTexture(eRESOURCES_PATH + l_msSpec.m_strEmision.value());
+  else
+    l_thEmissionId = l_thAlbedoId;
+  if (l_msSpec.m_strPRM != std::nullopt)
+    l_thPRMId = LoadTexture(eRESOURCES_PATH + l_msSpec.m_strPRM.value());
+  else
+    l_thPRMId = l_thAlbedoId;
+  if (l_msSpec.m_fLuminance != std::nullopt)
+    l_fLuminance = l_msSpec.m_fLuminance.value();
+
+  const STextureAsset *l_taAlbedo;
+  const STextureAsset *l_taNormal;
+  const STextureAsset *l_taEmission;
+  const STextureAsset *l_taPRM;
+
+  l_taAlbedo = GetTexture(l_thAlbedoId);
+  l_taNormal = GetTexture(l_thNormalId);
+  l_taEmission = GetTexture(l_thEmissionId);
+  l_taPRM = GetTexture(l_thPRMId);
+
+  uint32_t l_uiNewMaterialID = Renderer::p_materialManager->CreatePBRMaterial(
+      l_taAlbedo->m_uiTextureID, l_taPRM->m_uiTextureID,
+      l_taNormal->m_uiTextureID, l_taEmission->m_uiTextureID,
+      p_maMaterial.asset.m_strName);
+
+  p_maMaterial.asset.m_uiMaterialID = l_uiNewMaterialID;
+}
+void CAssetSystem::ValidateTexture(SAssetSlot<STextureAsset> &p_taTexture) {
+  p_taTexture.asset.m_uiTextureID =
+      Renderer::p_materialManager->LoadTexture(p_taTexture.asset.m_strPath);
 }
 } // namespace eHaz

@@ -44,6 +44,8 @@ public:
     }
   }
 
+  void SetDefferedState(bool p_bStatus) { m_bUseDefferedShading = p_bStatus; }
+
   bool IsSimulating() { return physics_engine.IsSimulating(); }
 
   eHaz::Scene &getActiveScene() { return currentScene; }
@@ -70,6 +72,10 @@ private:
   bool m_bEditorMode = false;
 
   bool m_bDebugDrawing = false;
+
+  bool m_bUseDefferedShading = false;
+
+  void RenderFrame();
 
   AppSpec spec;
   eHazGraphics::Renderer renderer;

@@ -30,8 +30,28 @@ void Scene::RemoveGameObject(uint32_t index, bool recursive) {
     return;
   auto &obj = scene_graph.GetObject(index);
 
-  if (m_registry.valid(obj.entity))
+  if (m_registry.valid(obj.entity)) {
+
+    if (HasComponent<RigidBodyComponent>(index)) {
+
+      auto &component = GetComponent<RigidBodyComponent>(index);
+
+      PhysicsEngine::s_Instance->DestroyBody(component.m_jbidBodyID);
+    }
+
+    if (HasComponent<CameraComponent>(index)) {
+
+      m_uiActiveCameraObjectID = 0;
+    }
+
     m_registry.destroy(obj.entity);
+  }
+
+  for (uint32_t childIndex : obj.children) {
+
+    m_otOctree.Remove(scene_graph.GetObject(childIndex));
+  }
+  m_otOctree.Remove(scene_graph.GetObject(index));
   scene_graph.RemoveNode(index, recursive);
 }
 
@@ -190,7 +210,7 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
 
 void Scene::OnUpdate(float deltaTime) {
 
-  ExecutePendingActions();
+  // ExecutePendingActions();
   UpdateWorldTransforms();
 
   auto &nodes = scene_graph.GetNodes();
@@ -349,8 +369,8 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     m_otOctree = COctree();
 
     for (auto &node : scene_graph.nodes) {
-
-      m_otOctree.Insert(*node);
+      if (node != nullptr)
+        m_otOctree.Insert(*node);
     }
 
     PhysicsEngine::s_Instance->ProcessQueues(*this);

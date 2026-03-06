@@ -1,5 +1,5 @@
 
-#version 460 core
+/*#version 460 core
 #extension GL_ARB_bindless_texture : require
 
 in vec2 TexCoords;
@@ -29,4 +29,47 @@ void main() {
     vec4 albedoColor = texture(albedoTex, TexCoords);
 
     FragColor = albedoColor;
+}*/
+
+#version 460 core
+#extension GL_ARB_bindless_texture : require
+
+in vec2 TexCoords;
+in vec3 FragNormal;
+flat in uint MatID;
+
+struct Material {
+    sampler2D albedo;
+    sampler2D prm;
+    sampler2D normalMap;
+    sampler2D emission;
+
+    float luminance;
+    float aPad;
+    float bPad;
+};
+
+layout(binding = 3, std430) readonly buffer ssbo3 {
+    Material materials[];
+};
+
+layout(location = 0) out vec4 gAlbedo;
+layout(location = 1) out vec3 gNormal;
+layout(location = 2) out vec3 gPRM;
+layout(location = 3) out vec3 gEmission;
+
+void main()
+{
+    sampler2D albedoTex = materials[MatID].albedo;
+    sampler2D prmTex = materials[MatID].prm;
+    sampler2D emissionTex = materials[MatID].emission;
+
+    vec3 albedo = texture(albedoTex, TexCoords).rgb;
+    vec3 prm = texture(prmTex, TexCoords).rgb;
+    vec3 emission = texture(emissionTex, TexCoords).rgb;
+
+    gAlbedo = vec4(albedo, 1.0);
+    gNormal = normalize(FragNormal) * 0.5 + 0.5; // pack to 0-1
+    gPRM = prm;
+    gEmission = emission;
 }

@@ -2,6 +2,7 @@
 #include "Components.hpp"
 #include "Core/Layer.hpp"
 #include "DataStructures.hpp"
+#include "Renderer.hpp"
 #include <SDL3/SDL_log.h>
 #include <iterator>
 namespace eHaz_Core {
@@ -19,6 +20,56 @@ Application::Application(AppSpec spec) : spec(spec) {
 
 Application::~Application() { renderer.Destroy(); }
 
+void Application::RenderFrame() {
+
+  if (m_bEditorMode) {
+
+    // renderer.SetFrameBuffer(renderer.GetMainFBO());
+    if (m_bUseDefferedShading) {
+      Renderer::r_instance->BindGeometryBuffer();
+
+      layerStack.RenderLayers();
+      if (m_bDebugDrawing) {
+
+        physics_engine.DrawDebug(m_dsSetting);
+
+        renderer.DrawDebug();
+      }
+      renderer.RenderLightingPass();
+
+      renderer.SetFrameBuffer(renderer.GetMainFBO());
+      renderer.RenderHDRToScreen();
+
+      renderer.DefaultFrameBuffer();
+
+      layerStack.RenderUILayer();
+    } else {
+      renderer.SetFrameBuffer(renderer.GetMainFBO());
+      layerStack.RenderLayers();
+
+      if (m_bDebugDrawing) {
+
+        physics_engine.DrawDebug(m_dsSetting);
+
+        renderer.DrawDebug();
+      }
+      renderer.DefaultFrameBuffer();
+
+      layerStack.RenderUILayer();
+    }
+
+  } else {
+    Renderer::r_instance->BindGeometryBuffer();
+    layerStack.RenderLayers();
+
+    renderer.RenderLightingPass();
+
+    renderer.DefaultFrameBuffer();
+    renderer.RenderHDRToScreen();
+  }
+
+  renderer.SwapBuffers();
+}
 void Application::Run() {
 
   constexpr float FIXED_DT = 1.0f / 60.0f;
@@ -52,6 +103,8 @@ void Application::Run() {
     layerStack.NotifyEvents(eventQueue);
 
     asset_system.Update();
+
+    currentScene.ExecutePendingActions();
 
     if (IsSimulating()) {
 
@@ -89,33 +142,14 @@ void Application::Run() {
       accumulator -= FIXED_DT;
     }
     // SDL_Log(physics_engine.GetStats().c_str());
-    currentScene.OnUpdate(deltaTime);
 
+    currentScene.OnUpdate(deltaTime);
     renderer.UpdateRenderer(deltaTime);
     if (physics_engine.IsSimulating())
       physics_engine.StepSimulation(FIXED_DT);
-    if (m_bEditorMode) {
-      renderer.SetFrameBuffer(renderer.GetMainFBO());
-      layerStack.RenderLayers();
 
-      if (m_bDebugDrawing) {
+    RenderFrame();
 
-        physics_engine.DrawDebug(m_dsSetting);
-
-        renderer.DrawDebug();
-      }
-      renderer.DefaultFrameBuffer();
-
-      layerStack.RenderUILayer();
-    } else {
-      layerStack.RenderLayers();
-
-      if (m_bDebugDrawing) {
-        renderer.DrawDebug();
-        physics_engine.DrawDebug(m_dsSetting);
-      }
-    }
-    renderer.SwapBuffers();
     // eventQueue.ClearHandledEvents();
 
     eventQueue.Clear();
