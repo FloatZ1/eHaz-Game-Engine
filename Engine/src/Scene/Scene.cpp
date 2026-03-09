@@ -303,6 +303,7 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
   ar & sceneName;
   ar & scene_graph;
   ar & m_strScenePath;
+  ar & m_uiActiveCameraObjectID;
 
   CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
   ar & loadedAssets;
@@ -337,9 +338,11 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     ar & sceneName;
     ar & scene_graph;
     ar & m_strScenePath;
+    ar & m_uiActiveCameraObjectID;
 
     CAssetSystem loadedAssets(true);
     ar & loadedAssets;
+    // ar & m_uiActiveCameraObjectID;
 
     CAssetSystem::m_pInstance->ClearAll();
     CAssetSystem::m_pInstance->ValidateAndLoadSystem(loadedAssets);

@@ -70,11 +70,11 @@ CAssetSystem::LoadCollisonMeshData(std::string p_strPath) {
   l_assReturn->m_strPath = p_strPath;
 
   const aiMesh *l_asmpMesh = l_asmpScene->mMeshes[0];
-  for (int i = 0; i < l_asmpMesh->mNumVertices; i++) {
+  for (uint32_t i = 0; i < l_asmpMesh->mNumVertices; i++) {
 
     l_assReturn->m_vVertices.push_back({l_asmpMesh->mVertices[i].x,
-                                        l_asmpMesh->mVertices->y,
-                                        l_asmpMesh->mVertices->z});
+                                        l_asmpMesh->mVertices[i].y,
+                                        l_asmpMesh->mVertices[i].z});
   }
 
   for (unsigned int i = 0; i < l_asmpMesh->mNumFaces; i++) {
@@ -101,11 +101,11 @@ CAssetSystem::LoadHullData(std::string p_strPath) {
   l_assReturn->m_strPath = p_strPath;
 
   const aiMesh *l_asmpMesh = l_asmpScene->mMeshes[0];
-  for (int i = 0; i < l_asmpMesh->mNumVertices; i++) {
+  for (uint32_t i = 0; i < l_asmpMesh->mNumVertices; i++) {
 
     l_assReturn->m_vVertices.push_back({l_asmpMesh->mVertices[i].x,
-                                        l_asmpMesh->mVertices->y,
-                                        l_asmpMesh->mVertices->z});
+                                        l_asmpMesh->mVertices[i].y,
+                                        l_asmpMesh->mVertices[i].z});
   }
 
   return l_assReturn;

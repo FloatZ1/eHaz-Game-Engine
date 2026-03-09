@@ -143,6 +143,7 @@ CDebugBatch::CDebugBatch(const JPH::DebugRenderer::Triangle *inTriangles,
   for (int i = 0; i < _indexCount; ++i)
     indices.emplace_back(i);
 
+  glCreateVertexArrays(1, &_vao);
   glCreateBuffers(1, &_vbo);
   glCreateBuffers(1, &_ebo);
 
@@ -265,10 +266,32 @@ void CPhysicsDebugRenderer::DrawGeometry(
     JPH::RMat44Arg inModelMatrix, const JPH::AABox &, float,
     JPH::ColorArg inModelColor,
     const JPH::DebugRenderer::GeometryRef &inGeometry,
-    JPH::DebugRenderer::ECullMode, JPH::DebugRenderer::ECastShadow,
-    JPH::DebugRenderer::EDrawMode) {
+    JPH::DebugRenderer::ECullMode inCullMode,
+    JPH::DebugRenderer::ECastShadow inCastShadow,
+    JPH::DebugRenderer::EDrawMode inDrawMode) {
   // Convert Jolt matrix to glm
+  GLboolean prevCullEnabled = glIsEnabled(GL_CULL_FACE);
 
+  GLint prevCullFaceMode;
+  glGetIntegerv(GL_CULL_FACE_MODE, &prevCullFaceMode);
+
+  // Apply Jolt culling
+  switch (inCullMode) {
+  case ECullMode::CullBackFace:
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    break;
+
+  case ECullMode::CullFrontFace:
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    break;
+
+  case ECullMode::Off:
+  default:
+    glDisable(GL_CULL_FACE);
+    break;
+  }
   glm::mat4 model = PhysicsConversions::ToGLMMat4(inModelMatrix);
 
   // Bind your shader
@@ -289,6 +312,13 @@ void CPhysicsDebugRenderer::DrawGeometry(
     const auto &batch = lod.mTriangleBatch;
     ((CDebugBatch *)batch.GetPtr())->Draw();
   }
+
+  if (prevCullEnabled)
+    glEnable(GL_CULL_FACE);
+  else
+    glDisable(GL_CULL_FACE);
+
+  glCullFace(prevCullFaceMode);
 }
 
 void CPhysicsDebugRenderer::Init() {
