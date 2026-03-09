@@ -13,6 +13,8 @@
 #include "Jolt/Physics/Body/MotionType.h"
 #include "Jolt/Physics/Collision/Shape/BoxShape.h"
 #include "Jolt/Physics/Collision/Shape/ConvexHullShape.h"
+#include "Jolt/Physics/Collision/Shape/ScaledShape.h"
+#include "Jolt/Physics/Collision/Shape/Shape.h"
 #include "Jolt/Physics/EActivation.h"
 #include "Jolt/Physics/PhysicsSettings.h"
 #include "Jolt/RegisterTypes.h"
@@ -285,9 +287,11 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
   } break;
   case eHaz::EPhysicsShape::ConvexHull: {
 
-    if (m_umConvexHulls.contains(p_bdDescription.m_chhHullHandle))
-      return m_umConvexHulls[p_bdDescription.m_chhHullHandle];
+    CustomShapeKey l_chkKey(p_bdDescription, false);
+    if (m_umConvexHulls.contains(l_chkKey)) {
 
+      return m_umConvexHulls[l_chkKey];
+    }
     const SConvexHullAsset *l_chaAsset =
         CAssetSystem::m_pInstance->GetConvexHull(
             p_bdDescription.m_chhHullHandle);
@@ -296,15 +300,27 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     l_jv3Converted.reserve(l_chaAsset->m_vVertices.size());
 
     for (auto &vert : l_chaAsset->m_vVertices) {
-      l_jv3Converted.push_back({vert.x, vert.y, vert.z});
+      l_jv3Converted.push_back({vert.x * p_bdDescription.m_fCustomShapeScale,
+                                vert.y * p_bdDescription.m_fCustomShapeScale,
+                                vert.z * p_bdDescription.m_fCustomShapeScale});
     }
 
     JPH::ConvexHullShapeSettings l_chsConvexHullSettings(l_jv3Converted.data(),
                                                          l_jv3Converted.size());
 
-    JPH::ShapeSettings::ShapeResult l_srResult =
-        l_chsConvexHullSettings.Create();
+    JPH::ShapeSettings::ShapeResult l_srResult;
+    /* if (p_bdDescription.m_fCustomShapeScale != 1.0f) {
+       JPH::ScaledShapeSettings l_sssScaledShapeSettings(
+           &l_chsConvexHullSettings, {p_bdDescription.m_fCustomShapeScale,
+                                      p_bdDescription.m_fCustomShapeScale,
+                                      p_bdDescription.m_fCustomShapeScale});
 
+       l_srResult = l_sssScaledShapeSettings.Create();
+
+     } else { */
+
+    l_srResult = l_chsConvexHullSettings.Create();
+    //  }
     if (l_srResult.HasError()) {
       SDL_Log("JOLT ERROR: %s \n", l_srResult.GetError().c_str());
 
@@ -312,14 +328,17 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
-    m_umConvexHulls[p_bdDescription.m_chhHullHandle] = l_srefShape;
+    m_umConvexHulls[l_chkKey] = l_srefShape;
     return l_srefShape;
 
   } break;
   case eHaz::EPhysicsShape::Mesh: {
 
-    if (m_umCollisionMeshes.contains(p_bdDescription.m_cmhMeshHandle))
-      return m_umCollisionMeshes[p_bdDescription.m_cmhMeshHandle];
+    CustomShapeKey l_chkKey(p_bdDescription, true);
+
+    if (m_umCollisionMeshes.contains(l_chkKey)) {
+      return m_umCollisionMeshes[l_chkKey];
+    }
 
     const SCollisionMeshAsset *l_cmaAsset =
         CAssetSystem::m_pInstance->GetCollisionMesh(
@@ -333,9 +352,10 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
 
     for (size_t i = 0; i < l_cmaAsset->m_vVertices.size(); i++) {
 
-      l_tlVertexList.push_back({l_cmaAsset->m_vVertices[i].x,
-                                l_cmaAsset->m_vVertices[i].y,
-                                l_cmaAsset->m_vVertices[i].z});
+      l_tlVertexList.push_back(
+          {l_cmaAsset->m_vVertices[i].x * p_bdDescription.m_fCustomShapeScale,
+           l_cmaAsset->m_vVertices[i].y * p_bdDescription.m_fCustomShapeScale,
+           l_cmaAsset->m_vVertices[i].z * p_bdDescription.m_fCustomShapeScale});
     }
 
     l_itlTriangleList.reserve(l_cmaAsset->m_vIndices.size() / 3);
@@ -355,8 +375,19 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
 
     JPH::MeshShapeSettings l_mssMeshSettings(l_tlVertexList, l_itlTriangleList);
 
-    JPH::ShapeSettings::ShapeResult l_srResult = l_mssMeshSettings.Create();
+    JPH::ShapeSettings::ShapeResult l_srResult;
+    /*  if (p_bdDescription.m_fCustomShapeScale != 1.0f) {
+        JPH::ScaledShapeSettings l_sssScaledShapeSettings(
+            &l_mssMeshSettings, {p_bdDescription.m_fCustomShapeScale,
+                                 p_bdDescription.m_fCustomShapeScale,
+                                 p_bdDescription.m_fCustomShapeScale});
 
+        l_srResult = l_sssScaledShapeSettings.Create();
+
+      } else { */
+
+    l_srResult = l_mssMeshSettings.Create();
+    //  }
     if (l_srResult.HasError()) {
       SDL_Log("JOLT ERROR: %s \n", l_srResult.GetError().c_str());
 
@@ -364,7 +395,7 @@ PhysicsEngine::CreateShapeFromDesc(SBodyDescriptor p_bdDescription) {
     }
 
     JPH::ShapeRefC l_srefShape = l_srResult.Get();
-    m_umCollisionMeshes[p_bdDescription.m_cmhMeshHandle] = l_srefShape;
+    m_umCollisionMeshes[l_chkKey] = l_srefShape;
     return l_srefShape;
 
   } break;

@@ -15,10 +15,35 @@
 #include "glm/glm.hpp"
 #include <Scene.hpp>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
 namespace eHaz {
+
+struct CustomShapeKey {
+  SAssetHandle m_ahHandle;
+  float m_fScale;
+
+  CustomShapeKey(const SBodyDescriptor &desc, bool isMesh) {
+    if (isMesh)
+      m_ahHandle = desc.m_cmhMeshHandle;
+    else
+      m_ahHandle = desc.m_chhHullHandle;
+
+    m_fScale = desc.m_fCustomShapeScale;
+  }
+
+  CustomShapeKey(const CustomShapeKey &other) {
+    m_ahHandle = other.m_ahHandle;
+    m_fScale = other.m_fScale;
+  }
+
+  bool operator==(const CustomShapeKey &other) const {
+
+    return m_ahHandle == other.m_ahHandle && m_fScale == other.m_fScale;
+  }
+};
 
 struct BoxKey {
   glm::vec3 halfExtents;
@@ -46,6 +71,15 @@ struct CapsuleKey {
 
 } // namespace eHaz
 namespace std {
+
+template <> struct hash<eHaz::CustomShapeKey> {
+  size_t operator()(const eHaz::CustomShapeKey &k) const noexcept {
+    size_t h1 = std::hash<float>{}(k.m_fScale);
+    size_t h2 = std::hash<float>{}(k.m_ahHandle.index);
+    size_t h3 = std::hash<float>{}(k.m_ahHandle.generation);
+    return h1 ^ (h2 << 1) ^ (h3 << 2);
+  }
+};
 template <> struct hash<eHaz::BoxKey> {
   size_t operator()(const eHaz::BoxKey &k) const {
     size_t h1 = hash<float>()(k.halfExtents.x);
@@ -125,9 +159,9 @@ private:
 
   std::unordered_map<CapsuleKey, JPH::ShapeRefC> m_umCapsuleShapes;
 
-  std::unordered_map<CollisionMeshHandle, JPH::ShapeRefC> m_umCollisionMeshes;
+  std::unordered_map<CustomShapeKey, JPH::ShapeRefC> m_umCollisionMeshes;
 
-  std::unordered_map<ConvexHullHandle, JPH::ShapeRefC> m_umConvexHulls;
+  std::unordered_map<CustomShapeKey, JPH::ShapeRefC> m_umConvexHulls;
 
 private:
   bool m_bIsSimulating = false;

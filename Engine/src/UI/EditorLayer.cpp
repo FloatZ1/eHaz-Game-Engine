@@ -1077,9 +1077,13 @@ void DrawBodyDescriptorProperties(uint32_t selectedNode,
               l_asAssetSystem.GetConvexHull(l_chhSelectedHandle)->m_strPath)
               .filename()
               .c_str());
+
+      ImGui::DragFloat("Shape Scale", &p_bdDescription.m_fCustomShapeScale,
+                       0.2f);
     } else {
       ImGui::Text("Current: None");
     }
+
   } break;
   case EPhysicsShape::Mesh: {
 
@@ -1135,10 +1139,12 @@ void DrawBodyDescriptorProperties(uint32_t selectedNode,
               l_asAssetSystem.GetCollisionMesh(l_chhSelectedHandle)->m_strPath)
               .filename()
               .c_str());
+
+      ImGui::DragFloat("Shape Scale", &p_bdDescription.m_fCustomShapeScale,
+                       0.2f);
     } else {
       ImGui::Text("Current: None");
     }
-
   } break;
   case EPhysicsShape::Capsule: {
 

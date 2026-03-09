@@ -32,6 +32,8 @@ struct SBodyDescriptor {
   float m_fRadius = 0;
   float m_fHeight = 0;
 
+  float m_fCustomShapeScale = 1.0f;
+
   ConvexHullHandle m_chhHullHandle;
   CollisionMeshHandle m_cmhMeshHandle;
 
@@ -40,14 +42,15 @@ struct SBodyDescriptor {
       : m_psShape(other.m_psShape), m_v3HalfExtents(other.m_v3HalfExtents),
         m_fHeight(other.m_fHeight), m_fRadius(other.m_fRadius),
         m_chhHullHandle(other.m_chhHullHandle),
-        m_cmhMeshHandle(other.m_cmhMeshHandle) {}
+        m_cmhMeshHandle(other.m_cmhMeshHandle),
+        m_fCustomShapeScale(other.m_fCustomShapeScale) {}
 
 private:
   friend class boost::serialization::access;
 
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version) {
-
+    ar & m_fCustomShapeScale;
     ar & m_psShape;
     ar & m_fRadius;
     ar & m_fHeight;
