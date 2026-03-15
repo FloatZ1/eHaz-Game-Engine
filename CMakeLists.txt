@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19.2)
-project(eHaz-Game-Engine)
+project(eHaz-Game-Engine LANGUAGES C CXX)
 
 # Remove hardcoded compiler paths
  #set(CMAKE_CXX_COMPILER clang++)

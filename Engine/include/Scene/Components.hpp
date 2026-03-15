@@ -12,8 +12,11 @@
 #include "Utils/Boost_GLM_Serialization.hpp"
 // #include "entt/core/hashed_string.hpp"
 #include "Physics/JoltImplementations.hpp"
+#include "Scripting/Script_Fields.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
+#include "sol/sol.hpp"
+#include <boost/serialization/access.hpp>
 #include <ctime>
 #include <entt/core/hashed_string.hpp>
 #include <entt/entt.hpp>
@@ -21,6 +24,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 using namespace entt::literals;
 namespace eHaz {
@@ -31,7 +35,8 @@ enum class ComponentID : uint32_t {
   Model = 1 << 1,
   Rigidbody = 1 << 2,
   Camera = 1 << 3,
-  Animator = 1 << 5
+  Animator = 1 << 5,
+  Script = 1 << 6
 };
 // class ComponentData {
 // public:
@@ -208,7 +213,26 @@ private:
     ar & m_ptProjectionType;
   }
 };
-struct ScriptComponent {};
+struct ScriptComponent {
+
+  ScriptHandle m_shHandle;
+
+  std::vector<SScriptField> m_vFields;
+
+  sol::table m_stTableInstance; // must be validated on load
+
+  bool m_bUpdateLuaData = true;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+
+    ar & m_shHandle;
+    ar & m_vFields;
+  }
+};
 
 // ------------------- ComponentID -------------------
 
@@ -298,7 +322,10 @@ static void register_components() {
   // TriggerZone
 
   // ScriptComponent
-  REGISTER_COMPONENT(ScriptComponent, ComponentID::None);
+  REGISTER_COMPONENT(ScriptComponent, ComponentID::Script);
+  REGISTER_FIELD(ScriptComponent, m_shHandle);
+  REGISTER_FIELD(ScriptComponent, m_vFields);
+  REGISTER_FIELD(ScriptComponent, m_bUpdateLuaData);
 }
 
 } // namespace eHaz

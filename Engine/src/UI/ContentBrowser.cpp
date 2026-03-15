@@ -141,7 +141,15 @@ void EditorUILayer::DrawContentBrowser() {
         CAssetSystem::m_pInstance->GetCollisionMeshHandle(
             asset.asset.m_strPath));
   }
-
+  for (auto &asset : CAssetSystem::m_pInstance->GetAllScripts()) {
+    if (!asset.alive)
+      continue;
+    DrawItem(
+        m_umUiImages["script_icon.png"]->GetTexture(),
+        std::filesystem::path(asset.asset.m_strPath).filename().string(),
+        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveScript(h); },
+        CAssetSystem::m_pInstance->GetScriptHandle(asset.asset.m_strPath));
+  }
   ImGui::PopStyleVar();
   ImGui::EndChild();
   ImGui::End();
@@ -225,6 +233,11 @@ void EditorUILayer::DrawFolderBrowser() {
           (extension == ".png" || extension == ".jpg")) {
 
         CAssetSystem::m_pInstance->LoadTexture(path);
+      };
+      if (ImGui::MenuItem("Load as Lua Script") &&
+          (extension == ".lua" || extension == ".luac")) {
+
+        CAssetSystem::m_pInstance->LoadScript(path);
       };
 
       ImGui::EndPopup();

@@ -15,6 +15,7 @@ Application::Application(AppSpec spec) : spec(spec) {
 
   physics_engine.Initialize();
 
+  m_seScriptingEngine.Initialize();
   // renderer.p_bufferManager->BeginWritting();
 }
 

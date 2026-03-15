@@ -4,6 +4,7 @@
 #include "Core/Event.hpp"
 #include "DataStructs.hpp"
 #include "MaterialManager.hpp"
+#include "Scripting_Engine.hpp"
 #include "SpecParser.hpp"
 #include "imgui.h"
 #include <Renderer.hpp>
@@ -698,6 +699,8 @@ void CAssetSystem::ClearAll() {
     l_renderer->p_shaderManager->RemoveShaderProgramme(asset.asset.m_hashedID);
   }
 
+  CScriptingEngine::s_pInstance->Clear();
+
   Renderer::p_AnimatedModelManager->ClearEverything();
   Renderer::p_materialManager->ClearMaterials();
   Renderer::p_meshManager->ClearEverything();
@@ -726,6 +729,10 @@ void CAssetSystem::ClearAll() {
 
   m_umCollsionMeshHandles.clear();
   m_umConvexHullHandles.clear();
+
+  m_umScriptHandles.clear();
+  m_freeScriptSlots.clear();
+  m_vScriptAssets.clear();
 }
 void CAssetSystem::ReloadModel(ModelHandle p_Handle) {
 
@@ -1008,6 +1015,10 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
   m_freeConvexHullSlots = other.m_freeConvexHullSlots;
   m_freeCollsionMeshSlots = other.m_freeCollsionMeshSlots;
 
+  m_freeScriptSlots = other.m_freeScriptSlots;
+  m_vScriptAssets = other.m_vScriptAssets;
+  m_umScriptHandles = other.m_umScriptHandles;
+
   m_bInvalid = true;
 
   // -------- now validate + load --------
@@ -1062,6 +1073,11 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
       continue;
 
     ValidateMaterial(material);
+  }
+
+  for (auto &script : m_umScriptHandles) {
+
+    CScriptingEngine::s_pInstance->LoadScript(script.second);
   }
 
   m_bInvalid = false;
@@ -1236,4 +1252,91 @@ void CAssetSystem::ValidateTexture(SAssetSlot<STextureAsset> &p_taTexture) {
   p_taTexture.asset.m_uiTextureID =
       Renderer::p_materialManager->LoadTexture(p_taTexture.asset.m_strPath);
 }
+ScriptHandle CAssetSystem::LoadScript(std::string p_strScriptPath) {
+
+  if (m_umScriptHandles.contains(p_strScriptPath)) {
+
+    return m_umScriptHandles[p_strScriptPath];
+  }
+
+  ScriptHandle l_shHandle;
+  SScriptAsset l_saAsset;
+  l_saAsset.m_strPath = p_strScriptPath;
+  if (m_freeScriptSlots.size() > 0) {
+
+    uint32_t l_uiSlotID = m_freeScriptSlots.back();
+
+    m_vScriptAssets[l_uiSlotID].generation++;
+    l_shHandle.generation = m_vScriptAssets[l_uiSlotID].generation;
+    m_vScriptAssets[l_uiSlotID].asset = l_saAsset;
+    m_vScriptAssets[l_uiSlotID].alive = true;
+    l_shHandle.index = l_uiSlotID;
+  } else {
+    SAssetSlot<SScriptAsset> l_asSlot;
+    l_asSlot.asset = l_saAsset;
+    l_asSlot.alive = true;
+
+    m_vScriptAssets.push_back(l_asSlot);
+
+    uint32_t l_uiSlotID = m_vScriptAssets.size() - 1;
+
+    l_shHandle.generation = m_vScriptAssets[l_uiSlotID].generation;
+    l_shHandle.index = l_uiSlotID;
+  }
+
+  CScriptingEngine::s_pInstance->LoadScript(l_shHandle);
+
+  return l_shHandle;
+}
+
+bool CAssetSystem::isValidScript(ScriptHandle p_Handle) {
+
+  if (p_Handle.index >= m_vScriptAssets.size())
+    return false;
+
+  if (p_Handle.generation != m_vScriptAssets[p_Handle.index].generation)
+    return false;
+
+  if (!m_vScriptAssets[p_Handle.index].alive)
+    return false;
+
+  return true;
+}
+
+SScriptAsset *CAssetSystem::GetScript(ScriptHandle p_Handle) {
+
+  if (isValidScript(p_Handle)) {
+    return &m_vScriptAssets[p_Handle.index].asset;
+  }
+  return nullptr;
+}
+
+void CAssetSystem::RemoveScript(ScriptHandle p_Handle) {
+
+  m_freeScriptSlots.push_back(p_Handle.index);
+
+  m_vScriptAssets[p_Handle.index].alive = false;
+
+  m_umScriptHandles.erase(m_vScriptAssets[p_Handle.index].asset.m_strPath);
+}
+
+void CAssetSystem::ReloadScript(ScriptHandle p_Handle) {
+
+  SDL_Log("NOT IMPLMENTED CALL RELOAD SCRIPT FROM THE SCRIPTING ENGINE\n");
+}
+
+const std::vector<SAssetSlot<SScriptAsset>> &
+CAssetSystem::GetAllScripts() const {
+
+  return m_vScriptAssets;
+}
+
+ScriptHandle CAssetSystem::GetScriptHandle(std::string p_strPath) {
+
+  if (m_umScriptHandles.contains(p_strPath))
+    return m_umScriptHandles[p_strPath];
+
+  return ScriptHandle();
+}
+
 } // namespace eHaz

@@ -9,6 +9,7 @@
 #include "LayerStack.hpp"
 #include "Renderer.hpp"
 #include "Scene.hpp"
+#include "Scripting_Engine.hpp"
 #include <entt/entity/entity.hpp>
 #include <string>
 namespace eHaz_Core {
@@ -45,6 +46,10 @@ public:
   }
 
   void SetDefferedState(bool p_bStatus) { m_bUseDefferedShading = p_bStatus; }
+
+  eHaz::CScriptingEngine &GetScriptingEngineInstance() {
+    return m_seScriptingEngine;
+  }
 
   bool IsSimulating() { return physics_engine.IsSimulating(); }
 
@@ -91,7 +96,8 @@ private:
   eHaz::CAssetSystem asset_system;
 
   eHaz::Scene currentScene = eHaz::Scene("default scene");
-  ;
+
+  eHaz::CScriptingEngine m_seScriptingEngine;
 };
 
 } // namespace eHaz_Core
