@@ -12,6 +12,7 @@
 #include <boost/serialization/vector.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -126,6 +127,21 @@ public:
   void Update();
 
 private:
+  bool ScriptChanged(SScriptAsset &asset) {
+
+    if (!std::filesystem::exists(asset.m_strPath))
+      return false;
+
+    auto current = std::filesystem::last_write_time(asset.m_strPath);
+
+    if (current != asset.m_fttLastWrite) {
+      asset.m_fttLastWrite = current;
+      return true;
+    }
+
+    return false;
+  }
+
   eHazGraphics::SBufferRange m_brMaterialLocation;
 
   // Loads the model from disk

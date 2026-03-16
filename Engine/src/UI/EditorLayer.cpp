@@ -54,6 +54,10 @@ namespace eHaz {
 
 void DrawScriptField(uint32_t selectedNode, std::unique_ptr<GameObject> &node,
                      ScriptComponent &sc) {
+
+  if (!CAssetSystem::m_pInstance->isValidScript(sc.m_shHandle))
+    return;
+
   ImGui::SeparatorText("Fields");
   for (auto &field : sc.m_vFields) {
     ImGui::PushID(field.m_strFieldName.c_str());
@@ -65,38 +69,38 @@ void DrawScriptField(uint32_t selectedNode, std::unique_ptr<GameObject> &node,
           if constexpr (std::is_same_v<T, int>) {
             if (ImGui::DragInt(field.m_strFieldName.c_str(), &value)) {
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, float>) {
             if (ImGui::DragFloat(field.m_strFieldName.c_str(), &value, 0.1f)) {
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, double>) {
             float temp = static_cast<float>(value);
             if (ImGui::DragFloat(field.m_strFieldName.c_str(), &temp, 0.1f)) {
               value = temp;
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, bool>) {
             if (ImGui::Checkbox(field.m_strFieldName.c_str(), &value)) {
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, uint32_t>) {
             int temp = static_cast<int>(value);
             if (ImGui::DragInt(field.m_strFieldName.c_str(), &temp)) {
               value = static_cast<uint32_t>(temp);
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, char>) {
             char buffer[2] = {value, '\0'};
             if (ImGui::InputText(field.m_strFieldName.c_str(), buffer, 2)) {
               value = buffer[0];
 
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           } else if constexpr (std::is_same_v<T, std::string>) {
             char buffer[256];
@@ -106,7 +110,7 @@ void DrawScriptField(uint32_t selectedNode, std::unique_ptr<GameObject> &node,
             if (ImGui::InputText(field.m_strFieldName.c_str(), buffer,
                                  sizeof(buffer))) {
               value = buffer;
-              CScriptingEngine::s_pInstance->ValidateData(sc);
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
             }
           }
         },
@@ -116,7 +120,8 @@ void DrawScriptField(uint32_t selectedNode, std::unique_ptr<GameObject> &node,
   }
 }
 
-void DrawScriptHandleSelector(ScriptComponent &p_scComponent) {
+void DrawScriptHandleSelector(ScriptComponent &p_scComponent,
+                              uint32_t selectedNode) {
   auto &l_asAssetSystem = *CAssetSystem::m_pInstance;
   auto &l_vScripts = l_asAssetSystem.GetAllScripts();
 
@@ -153,7 +158,7 @@ void DrawScriptHandleSelector(ScriptComponent &p_scComponent) {
         p_scComponent.m_stTableInstance = sol::nil;
         p_scComponent.m_stTableInstance =
             CScriptingEngine::s_pInstance->CreateInstance(
-                p_scComponent.m_shHandle);
+                p_scComponent.m_shHandle, selectedNode);
         CScriptingEngine::s_pInstance->ExtractTableValues(p_scComponent);
         ImGui::CloseCurrentPopup();
       }
@@ -184,7 +189,7 @@ void DrawScriptComponentMenu(uint32_t selectedNode,
     ScriptComponent &l_scScript =
         scene.GetComponent<ScriptComponent>(selectedNode);
 
-    DrawScriptHandleSelector(l_scScript);
+    DrawScriptHandleSelector(l_scScript, selectedNode);
 
     DrawScriptField(selectedNode, node, l_scScript);
     ImGui::Separator();

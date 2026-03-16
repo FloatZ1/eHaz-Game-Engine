@@ -1,4 +1,5 @@
 #include "Core/AssetSystem/AssetSystem.hpp"
+#include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 
 #include "Core/Event.hpp"
@@ -1203,6 +1204,18 @@ void CAssetSystem::Update() {
   Renderer::r_instance->UpdateDynamicData(
       m_brMaterialLocation, l_materials.first.data(),
       l_materials.first.size() * sizeof(PBRMaterial));
+
+  if (eHaz_Core::Application::instance->EditorModeEnabled() == true) {
+
+    for (auto &script : m_vScriptAssets) {
+      if (!script.alive)
+        continue;
+      if (ScriptChanged(script.asset) && m_bInvalid == false) {
+
+        ReloadScript(m_umScriptHandles[script.asset.m_strPath]);
+      }
+    }
+  }
 }
 void CAssetSystem::ValidateMaterial(SAssetSlot<SMaterialAsset> &p_maMaterial) {
   SMaterialSpec l_msSpec = MaterialSpecParser::ParseMaterialSpec(
@@ -1261,6 +1274,8 @@ ScriptHandle CAssetSystem::LoadScript(std::string p_strScriptPath) {
 
   ScriptHandle l_shHandle;
   SScriptAsset l_saAsset;
+  l_saAsset.m_fttLastWrite = std::filesystem::last_write_time(p_strScriptPath);
+
   l_saAsset.m_strPath = p_strScriptPath;
   if (m_freeScriptSlots.size() > 0) {
 
@@ -1270,6 +1285,7 @@ ScriptHandle CAssetSystem::LoadScript(std::string p_strScriptPath) {
     l_shHandle.generation = m_vScriptAssets[l_uiSlotID].generation;
     m_vScriptAssets[l_uiSlotID].asset = l_saAsset;
     m_vScriptAssets[l_uiSlotID].alive = true;
+
     l_shHandle.index = l_uiSlotID;
   } else {
     SAssetSlot<SScriptAsset> l_asSlot;
@@ -1286,6 +1302,8 @@ ScriptHandle CAssetSystem::LoadScript(std::string p_strScriptPath) {
 
   CScriptingEngine::s_pInstance->LoadScript(l_shHandle);
 
+  m_umScriptHandles[p_strScriptPath] = l_shHandle;
+
   return l_shHandle;
 }
 
@@ -1297,7 +1315,7 @@ bool CAssetSystem::isValidScript(ScriptHandle p_Handle) {
   if (p_Handle.generation != m_vScriptAssets[p_Handle.index].generation)
     return false;
 
-  if (!m_vScriptAssets[p_Handle.index].alive)
+  if (m_vScriptAssets[p_Handle.index].alive == false)
     return false;
 
   return true;
@@ -1313,16 +1331,18 @@ SScriptAsset *CAssetSystem::GetScript(ScriptHandle p_Handle) {
 
 void CAssetSystem::RemoveScript(ScriptHandle p_Handle) {
 
-  m_freeScriptSlots.push_back(p_Handle.index);
+  if (isValidScript(p_Handle)) {
+    m_freeScriptSlots.push_back(p_Handle.index);
 
-  m_vScriptAssets[p_Handle.index].alive = false;
+    m_vScriptAssets[p_Handle.index].alive = false;
 
-  m_umScriptHandles.erase(m_vScriptAssets[p_Handle.index].asset.m_strPath);
+    m_umScriptHandles.erase(m_vScriptAssets[p_Handle.index].asset.m_strPath);
+  }
 }
 
 void CAssetSystem::ReloadScript(ScriptHandle p_Handle) {
 
-  SDL_Log("NOT IMPLMENTED CALL RELOAD SCRIPT FROM THE SCRIPTING ENGINE\n");
+  CScriptingEngine::s_pInstance->ReloadScript(p_Handle);
 }
 
 const std::vector<SAssetSlot<SScriptAsset>> &

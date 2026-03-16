@@ -40,8 +40,11 @@ void CScriptingEngine::Initialize() {
   m_ssLua.open_libraries(sol::lib::base);
 
   RegisterTypes();
+  // KeyCode
   RegisterInputKeys(m_ssLua);
+  // Input
   RegisterInputSystemBindings(m_ssLua);
+  // Physics
   RegisterPhysicsSystemBindings(m_ssLua);
 
   m_slrScriptClassInterface = m_ssLua.load(m_strScriptClassInterfaceSource);
@@ -93,16 +96,28 @@ void CScriptingEngine::ReloadScript(ScriptHandle p_shHandle) {
     return;
   }
 
-  sol::load_result l_slrCompiledScript =
-      m_ssLua.load_file(l_asScript->m_strPath);
-
   m_umCompiledScripts.erase(p_shHandle);
-  m_umCompiledScripts[p_shHandle] = std::move(l_slrCompiledScript);
+  LoadScript(p_shHandle);
+  for (auto object : eHaz_Core::Application::instance->getActiveScene()
+                         .GetObjectsWithComponent<ScriptComponent>()) {
+
+    auto &scene = eHaz_Core::Application::instance->getActiveScene();
+
+    auto &scriptComponent = scene.GetComponent<ScriptComponent>(object->index);
+
+    if (scriptComponent.m_shHandle != p_shHandle)
+      continue;
+
+    scriptComponent.m_stTableInstance =
+        CreateInstance(p_shHandle, object->index);
+  }
 }
-void CScriptingEngine::ValidateData(ScriptComponent &p_scComponent) {
+void CScriptingEngine::ValidateData(ScriptComponent &p_scComponent,
+                                    uint32_t p_uiObjectID) {
 
   if (!p_scComponent.m_stTableInstance.valid()) {
-    p_scComponent.m_stTableInstance = CreateInstance(p_scComponent.m_shHandle);
+    p_scComponent.m_stTableInstance =
+        CreateInstance(p_scComponent.m_shHandle, p_uiObjectID);
   }
 
   sol::table &l_stInstance = p_scComponent.m_stTableInstance;
@@ -119,13 +134,22 @@ void CScriptingEngine::CallOnDestroy(sol::table p_stData) {
   if (l_spfDestroy.valid())
     l_spfDestroy(p_stData);
 }
-sol::table CScriptingEngine::CreateInstance(ScriptHandle p_shHandle) {
+sol::table CScriptingEngine::CreateInstance(ScriptHandle p_shHandle,
+                                            uint32_t p_uiObjectID) {
 
   if (!m_umCompiledScripts.contains(p_shHandle))
     LoadScript(p_shHandle);
 
   auto &compiled = m_umCompiledScripts[p_shHandle];
+  if (!compiled.valid()) {
 
+    sol::error err = compiled;
+    SDL_Log("Script ERROR: %s", err.what());
+    return sol::nil;
+  }
+  if (!m_ssLua["ScriptBase"].valid()) {
+    SDL_Log("ScriptBase does not exist!");
+  }
   sol::protected_function_result result = compiled();
 
   if (!result.valid()) {
@@ -135,6 +159,10 @@ sol::table CScriptingEngine::CreateInstance(ScriptHandle p_shHandle) {
   }
 
   sol::table scriptTable = result;
+  scriptTable["gameObject"] = eHaz_Core::Application::instance->getActiveScene()
+                                  .scene_graph.nodes[p_uiObjectID]
+                                  .get();
+  scriptTable["ObjectID"] = p_uiObjectID;
 
   return scriptTable;
 }
@@ -149,6 +177,8 @@ void CScriptingEngine::ExtractTableValues(ScriptComponent &p_scComponent) {
       continue;
 
     std::string name = key.as<std::string>();
+    if (name == "gameObject" || name == "ObjectID")
+      continue;
     if (value.is<uint32_t>())
       p_scComponent.m_vFields.push_back(
           {p_scComponent.m_shHandle, name, value.as<uint32_t>()});
@@ -281,13 +311,12 @@ void CScriptingEngine::RegisterTypes() {
       [](const glm::mat3 &m, const glm::mat3 &other) { return m * other; });
 
   m_ssLua.new_usertype<TransformComponent>(
-      "TransformComponent", "World Position",
-      &TransformComponent::worldPosition, "World Scale",
-      &TransformComponent::worldScale, "World Rotation",
+      "TransformComponent", "WorldPosition", &TransformComponent::worldPosition,
+      "WorldScale", &TransformComponent::worldScale, "WorldRotation",
       &TransformComponent::worldRotation,
 
-      "Local Position", &TransformComponent::localPosition, "Local Scale",
-      &TransformComponent::localScale, "Local Rotation",
+      "LocalPosition", &TransformComponent::localPosition, "LocalScale",
+      &TransformComponent::localScale, "LocalRotation",
       &TransformComponent::localRotation);
 
   m_ssLua.new_usertype<CameraComponent>(
@@ -396,6 +425,7 @@ void CScriptingEngine::RegisterTypes() {
 }
 
 //clang-format on
+
 void CScriptingEngine::RegisterSceneFunctions() {
 
   sol::table l_stSceneTable = m_ssLua.create_named_table("Scene");

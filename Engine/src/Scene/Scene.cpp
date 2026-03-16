@@ -232,8 +232,11 @@ void Scene::OnUpdate(float deltaTime) {
         eHaz_Core::Application::instance->IsSimulating()) {
 
       auto &l_scScript = GetComponent<ScriptComponent>(i);
-      if (l_scScript.m_bUpdateLuaData)
-        CScriptingEngine::s_pInstance->ValidateData(l_scScript);
+      if (l_scScript.m_bUpdateLuaData) {
+        CScriptingEngine::s_pInstance->ValidateData(l_scScript, i);
+
+        l_scScript.m_bUpdateLuaData = false;
+      }
       CScriptingEngine::s_pInstance->UpdateScript(l_scScript.m_stTableInstance);
     }
 
@@ -410,13 +413,15 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
           rigidBodyComponent.m_uiSceneObjectOwnerID,
           rigidBodyComponent.m_bdDescription);
     }
-    auto scriptView = m_registry.view<ScriptComponent>();
 
-    for (auto &script : scriptView) {
+    for (auto object : GetObjectsWithComponent<ScriptComponent>()) {
 
-      ScriptComponent &l_scComponent = m_registry.get<ScriptComponent>(script);
-      CScriptingEngine::s_pInstance->ValidateData(l_scComponent);
+      ScriptComponent &l_scComponent =
+          GetComponent<ScriptComponent>(object->index);
+
+      CScriptingEngine::s_pInstance->ValidateData(l_scComponent, object->index);
     }
+
     m_otOctree = COctree();
 
     for (auto &node : scene_graph.nodes) {

@@ -38,7 +38,7 @@ void EditorUILayer::DrawContentBrowser() {
                       ImVec2(l_fIconPadding, l_fIconPadding));
 
   auto DrawItem = [&](ImTextureID texture, const std::string &name,
-                      void (*deleter)(SAssetHandle &), auto handle) {
+                      void (*deleter)(SAssetHandle &), SAssetHandle handle) {
     ImGui::BeginGroup();
 
     std::string id = name + std::to_string(l_iItemIndex);

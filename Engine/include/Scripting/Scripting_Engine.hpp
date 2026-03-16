@@ -34,7 +34,7 @@ public:
 
   void ReloadScript(ScriptHandle p_shHandle);
 
-  sol::table CreateInstance(ScriptHandle p_shHandle);
+  sol::table CreateInstance(ScriptHandle p_shHandle, uint32_t p_uiObjectID);
 
   void UpdateScript(sol::table p_stScript);
 
@@ -44,7 +44,7 @@ public:
   // TODO: IMPLEMENT
   void CallOnCollision(sol::table p_stScript);
 
-  void ValidateData(ScriptComponent &p_scComponent);
+  void ValidateData(ScriptComponent &p_scComponent, uint32_t p_uiObjectID);
 
   void CallOnDestroy(sol::table p_stData);
   void Clear();
@@ -56,6 +56,11 @@ private:
 
   void RegisterSceneFunctions();
 
+  sol::object GetComponent(uint32_t p_uiObjectID, ComponentID p_cidComponent,
+                           sol::state &m_ssLua);
+
+  sol::object GetGameObject(uint32_t p_uiObjectID, sol::state &m_ssLua);
+
   sol::state m_ssLua;
 
   std::unordered_map<ScriptHandle, sol::load_result> m_umCompiledScripts;
@@ -64,7 +69,7 @@ private:
 
   std::string m_strScriptClassInterfaceSource = R"lua(
 
-
+  
 
 
      -- Base interface for all scripts

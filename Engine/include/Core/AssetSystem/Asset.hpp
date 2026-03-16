@@ -7,6 +7,7 @@
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/serialization.hpp>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <vector>
 
@@ -205,6 +206,8 @@ private:
 struct SScriptAsset {
 
   std::string m_strPath;
+
+  std::filesystem::file_time_type m_fttLastWrite;
 
 private:
   friend class boost::serialization::access;

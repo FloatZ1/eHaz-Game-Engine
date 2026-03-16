@@ -68,6 +68,8 @@ public:
   bool GetDebugDrawingStatus() { return m_bDebugDrawing; }
   void SetDebugDrawingStatus(bool p_bStatus) { m_bDebugDrawing = p_bStatus; }
 
+  bool EditorModeEnabled() { return m_bEditorMode; }
+
   void Run();
 
   void Stop();

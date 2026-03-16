@@ -137,7 +137,7 @@ void Application::Run() {
     physics_engine.ProcessQueues(currentScene);
 
     while (accumulator >= FIXED_DT) {
-      if (!m_bEditorMode) {
+      if (IsSimulating()) {
         currentScene.OnFixedUpdate(FIXED_DT);
       }
       accumulator -= FIXED_DT;
