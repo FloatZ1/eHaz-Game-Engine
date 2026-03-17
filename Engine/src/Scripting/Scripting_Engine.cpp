@@ -446,7 +446,7 @@ void CScriptingEngine::RegisterSceneFunctions() {
       "GetComponent",
       [](uint32_t p_uiObjectID, ComponentID p_cidComponent) -> sol::object {
         Scene &l_sScene = eHaz_Core::Application::instance->getActiveScene();
-
+        SDL_Log("Script called GetComponent");
         sol::state &l_ssLua = CScriptingEngine::s_pInstance->GetLuaState();
 
         switch (p_cidComponent) {

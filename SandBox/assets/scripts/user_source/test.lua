@@ -14,13 +14,17 @@ function PrintMessage:OnUpdate(dt)
 	if not self.enabled then
 		return
 	end
-	---@class TransformComponent
-	local tc = Scene.GetComponent(self.gameObject.index, ComponentID.Transform)
 
 	if Input.GetKeyDown(KeyCode.G) then
-		print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
-		self.gameObject.name = "amongus"
-		tc.LocalPosition.x = tc.LocalPosition.x + 1
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		---@type RigidBodyComponent
+		local rb = Scene.GetComponent(self.gameObject.index, ComponentID.Rigidbody)
+		if not rb then
+			print("dasdasdasd")
+		end
+		local force = Vector3.new(100.0, 100.0, 0.0)
+		Physics.AddForce(rb, force)
 	end
 end
 
@@ -29,7 +33,7 @@ function PrintMessage:OnDestroy()
 end
 
 function PrintMessage:OnFixedUpdate(dt)
-	-- print("OOGA BOOGA FIXED UPDATE")
+	print("OOGA BOOGA FIXED UPDATE")
 end
 
 return PrintMessage
