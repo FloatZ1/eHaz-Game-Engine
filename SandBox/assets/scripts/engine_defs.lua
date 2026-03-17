@@ -83,12 +83,12 @@ function mat3:mul(other) end
 --------------------------------------------------
 
 ---@class TransformComponent
----@field ["WorldPosition"] Vector3
----@field ["WorldScale"] Vector3
----@field ["WorldRotation"] Quaternion
----@field ["LocalPosition"] Vector3
----@field ["LocalScale"] Vector3
----@field ["LocalRotation"] Quaternion
+---@field WorldPosition Vector3
+---@field WorldScale Vector3
+---@field WorldRotation Quaternion
+---@field LocalPosition Vector3
+---@field LocalScale Vector3
+---@field LocalRotation Quaternion
 local TransformComponent = {}
 
 ---@class CameraComponent

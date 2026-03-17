@@ -148,6 +148,8 @@ add_library(eHazEngine STATIC ${EHAZENGINE_SOURCES})
     PUBLIC
         SOL_ALL_SAFETIES_ON=1
         SOL_USE_STD_OPTIONAL=1
+        SOL_PRINT_ERRORS
+
         
 )
 target_include_directories(eHazEngine

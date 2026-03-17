@@ -47,6 +47,9 @@ public:
   void ValidateData(ScriptComponent &p_scComponent, uint32_t p_uiObjectID);
 
   void CallOnDestroy(sol::table p_stData);
+
+  sol::state &GetLuaState() { return m_ssLua; }
+
   void Clear();
 
   void Destroy();

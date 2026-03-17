@@ -47,6 +47,8 @@ void CScriptingEngine::Initialize() {
   // Physics
   RegisterPhysicsSystemBindings(m_ssLua);
 
+  RegisterSceneFunctions();
+
   m_slrScriptClassInterface = m_ssLua.load(m_strScriptClassInterfaceSource);
 
   if (!m_slrScriptClassInterface.valid()) {
@@ -207,7 +209,7 @@ void CScriptingEngine::CallOnCreate(sol::table p_stScript)
 
 {
 
-  sol::protected_function l_spfCreate = p_stScript["OnCreate"];
+  sol::protected_function l_spfCreate = p_stScript["OnStart"];
   if (l_spfCreate.valid())
     l_spfCreate(p_stScript);
 }
@@ -216,6 +218,10 @@ void CScriptingEngine::UpdateScript(sol::table p_stScript) {
   float l_fDeltaTime = eHaz_Core::Application::instance->GetDeltaTime();
 
   sol::protected_function l_spfUpdate = p_stScript["OnUpdate"];
+
+  if (!l_spfUpdate.valid()) {
+    SDL_Log("Script Error: %s", "Error in script");
+  }
 
   if (l_spfUpdate.valid())
     l_spfUpdate(p_stScript, l_fDeltaTime);
@@ -431,55 +437,55 @@ void CScriptingEngine::RegisterSceneFunctions() {
   sol::table l_stSceneTable = m_ssLua.create_named_table("Scene");
 
   l_stSceneTable.set_function(
-      "HasComponent", [&](uint32_t p_uiObjectID, ComponentID p_cidComponent) {
-        eHaz_Core::Application::instance->getActiveScene().HasComponent(
+      "HasComponent", [](uint32_t p_uiObjectID, ComponentID p_cidComponent) {
+        return eHaz_Core::Application::instance->getActiveScene().HasComponent(
             p_uiObjectID, p_cidComponent);
       });
 
   l_stSceneTable.set_function(
       "GetComponent",
-      [&](uint32_t p_uiObjectID, ComponentID p_cidComponent) -> sol::object {
+      [](uint32_t p_uiObjectID, ComponentID p_cidComponent) -> sol::object {
         Scene &l_sScene = eHaz_Core::Application::instance->getActiveScene();
 
+        sol::state &l_ssLua = CScriptingEngine::s_pInstance->GetLuaState();
+
         switch (p_cidComponent) {
-        case ComponentID::Camera: {
-          auto *comp = l_sScene.TryGetComponent<CameraComponent>(p_uiObjectID);
-          if (!comp)
-            return sol::nil;
-          return sol::make_reference(m_ssLua.lua_state(), *comp);
-        }
-        case ComponentID::Rigidbody: {
-          auto *comp =
-              l_sScene.TryGetComponent<RigidBodyComponent>(p_uiObjectID);
-          if (!comp)
-            return sol::nil;
-          return sol::make_reference(m_ssLua.lua_state(), *comp);
-        }
-        case ComponentID::Script: {
-          auto *comp = l_sScene.TryGetComponent<ScriptComponent>(p_uiObjectID);
-          if (!comp)
-            return sol::nil;
-          return sol::make_reference(m_ssLua.lua_state(), *comp);
-        }
-        case ComponentID::Transform: {
-          auto *comp =
-              l_sScene.TryGetComponent<TransformComponent>(p_uiObjectID);
-          if (!comp)
-            return sol::nil;
-          return sol::make_reference(m_ssLua.lua_state(), *comp);
-        }
+        case eHaz::ComponentID::Camera:
+          return sol::make_object(
+              l_ssLua.lua_state(),
+              l_sScene.TryGetComponent<CameraComponent>(p_uiObjectID));
+
+        case eHaz::ComponentID::Rigidbody:
+          return sol::make_object(
+              l_ssLua.lua_state(),
+              l_sScene.TryGetComponent<RigidBodyComponent>(p_uiObjectID));
+
+        case eHaz::ComponentID::Script:
+          return sol::make_object(
+              l_ssLua.lua_state(),
+              l_sScene.TryGetComponent<ScriptComponent>(p_uiObjectID));
+
+        case eHaz::ComponentID::Transform:
+          return sol::make_object(
+              l_ssLua.lua_state(),
+              l_sScene.TryGetComponent<TransformComponent>(p_uiObjectID));
+
         default:
-          return sol::nil;
+          SDL_Log("SCRIPT ERROR: Requested unknown ComponentID %d",
+                  (int)p_cidComponent);
+          return sol::make_object(l_ssLua.lua_state(), sol::nil);
         }
+        return sol::nil;
       });
 
   l_stSceneTable.set_function(
-      "GetGameObject", [&](uint32_t p_uiObjectID) -> sol::object {
+      "GetGameObject", [](uint32_t p_uiObjectID) -> sol::object {
         Scene &l_sScene = eHaz_Core::Application::instance->getActiveScene();
         if (l_sScene.scene_graph.IsValid(p_uiObjectID)) {
           auto &object = l_sScene.scene_graph.GetObject(p_uiObjectID);
 
-          return sol::make_reference(m_ssLua.lua_state(), object);
+          return sol::make_reference(
+              CScriptingEngine::s_pInstance->GetLuaState().lua_state(), object);
         } else {
           return sol::nil;
         }

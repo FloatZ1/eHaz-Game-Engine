@@ -14,12 +14,13 @@ function PrintMessage:OnUpdate(dt)
 	if not self.enabled then
 		return
 	end
-	--  print(self.gameObject.index)
-	--  transform = Scene.GetComponent(self.gameObject.index, ComponentID.Transform)
-	--   print(transform)
-	--	print("aaaaa")
+	---@class TransformComponent
+	local tc = Scene.GetComponent(self.gameObject.index, ComponentID.Transform)
+
 	if Input.GetKeyDown(KeyCode.G) then
 		print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+		self.gameObject.name = "amongus"
+		tc.LocalPosition.x = tc.LocalPosition.x + 1
 	end
 end
 
