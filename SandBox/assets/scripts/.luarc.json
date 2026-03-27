@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "workspace": {
+    "library": [
+      ".",          // index the definitions folder itself
+      "user_scripts"     // index the user scripts folder
+    ],
+    "maxPreload": 2000,
+    "checkThirdParty": false
+  }
+}

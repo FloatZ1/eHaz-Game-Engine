@@ -5,6 +5,8 @@
 
 namespace eHaz {
 
+std::unique_ptr<InputSystem> InputSystem::m_pInstance = nullptr;
+
 void InputSystem::SetKeyState(EHAZ_Keycode key, bool isPressed) {
 
   keyState[EHAZ_KEYCODE_TO_SCANCODE(key)] = isPressed;
@@ -140,5 +142,34 @@ void InputSystem::ProcessEvents(EventQueue &events) {
     keyReleasedState[i] = !keyState[i] && prevKeyState[i];
   }
   std::memcpy(prevKeyState, keyState, sizeof(keyState));
+
+  for (int i = 0; i < 6; i++) {
+    mouseButtonPressedState[i] =
+        mouseButtonState[i] && !prevMouseButtonState[i];
+    mouseButtonReleasedState[i] =
+        !mouseButtonState[i] && prevMouseButtonState[i];
+  }
+
+  std::memcpy(prevMouseButtonState, mouseButtonState, sizeof(mouseButtonState));
+}
+bool InputSystem::isMouseButtonPressed(MouseCode code) const {
+  if (!windowFocused)
+    return false;
+
+  return mouseButtonPressedState[(int)code];
+}
+
+bool InputSystem::isMouseButtonDown(MouseCode code) const {
+  if (!windowFocused)
+    return false;
+
+  return mouseButtonState[(int)code];
+}
+
+bool InputSystem::isMouseButtonUp(MouseCode code) const {
+  if (!windowFocused)
+    return false;
+
+  return mouseButtonReleasedState[(int)code];
 }
 } // namespace eHaz

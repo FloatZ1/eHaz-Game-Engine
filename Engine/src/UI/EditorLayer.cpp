@@ -10,13 +10,17 @@
 #include "GameObject.hpp"
 #include "IconsCodicons.h"
 #include "Jolt/Physics/Body/MotionType.h"
+#include "Model.hpp"
 #include "OS_Dialogues.hpp"
+#include "Octree.hpp"
 #include "Physics/Jolt_DataStructures.hpp"
 #include "Physics/Physics.hpp"
 #include "Renderer.hpp"
 #include "Scene-graph.hpp"
 #include "Scene.hpp"
+#include "Scripting_Engine.hpp"
 #include "entt/core/fwd.hpp"
+#include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "imgui.h"
@@ -42,7 +46,165 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#define CALL_ADD_FUNCTION(Type) scene.AddComponentPtr<Type>(selectedNode);
+
+#define CALL_REMOVE_FUNCTION(Type) scene.RemoveComponent<Type>(selectedNode);
+
 namespace eHaz {
+
+void DrawScriptField(uint32_t selectedNode, std::unique_ptr<GameObject> &node,
+                     ScriptComponent &sc) {
+
+  if (!CAssetSystem::m_pInstance->isValidScript(sc.m_shHandle))
+    return;
+
+  ImGui::SeparatorText("Fields");
+  for (auto &field : sc.m_vFields) {
+    ImGui::PushID(field.m_strFieldName.c_str());
+
+    std::visit(
+        [&](auto &value) {
+          using T = std::decay_t<decltype(value)>;
+
+          if constexpr (std::is_same_v<T, int>) {
+            if (ImGui::DragInt(field.m_strFieldName.c_str(), &value)) {
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, float>) {
+            if (ImGui::DragFloat(field.m_strFieldName.c_str(), &value, 0.1f)) {
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, double>) {
+            float temp = static_cast<float>(value);
+            if (ImGui::DragFloat(field.m_strFieldName.c_str(), &temp, 0.1f)) {
+              value = temp;
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, bool>) {
+            if (ImGui::Checkbox(field.m_strFieldName.c_str(), &value)) {
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, uint32_t>) {
+            int temp = static_cast<int>(value);
+            if (ImGui::DragInt(field.m_strFieldName.c_str(), &temp)) {
+              value = static_cast<uint32_t>(temp);
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, char>) {
+            char buffer[2] = {value, '\0'};
+            if (ImGui::InputText(field.m_strFieldName.c_str(), buffer, 2)) {
+              value = buffer[0];
+
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          } else if constexpr (std::is_same_v<T, std::string>) {
+            char buffer[256];
+            strncpy(buffer, value.c_str(), sizeof(buffer));
+            buffer[255] = '\0';
+
+            if (ImGui::InputText(field.m_strFieldName.c_str(), buffer,
+                                 sizeof(buffer))) {
+              value = buffer;
+              CScriptingEngine::s_pInstance->ValidateData(sc, selectedNode);
+            }
+          }
+        },
+        field.m_varValue);
+
+    ImGui::PopID();
+  }
+}
+
+void DrawScriptHandleSelector(ScriptComponent &p_scComponent,
+                              uint32_t selectedNode) {
+  auto &l_asAssetSystem = *CAssetSystem::m_pInstance;
+  auto &l_vScripts = l_asAssetSystem.GetAllScripts();
+
+  ScriptHandle &l_shSelectedHandle = p_scComponent.m_shHandle;
+
+  if (ImGui::Button("Select Script")) {
+    ImGui::OpenPopup("ScriptSelectPopup");
+  }
+
+  if (ImGui::BeginPopup("ScriptSelectPopup")) {
+    for (size_t i = 0; i < l_vScripts.size(); i++) {
+      auto &l_asScript = l_vScripts[i];
+
+      if (!l_asScript.alive)
+        continue;
+
+      bool isSelected =
+          (l_shSelectedHandle.index == i &&
+           l_shSelectedHandle.generation == l_asScript.generation);
+
+      const char *filename = std::filesystem::path(l_asScript.asset.m_strPath)
+                                 .filename()
+                                 .string()
+                                 .c_str();
+
+      if (ImGui::Selectable(filename, isSelected)) {
+        l_shSelectedHandle.index = i;
+        l_shSelectedHandle.generation = l_asScript.generation;
+
+        // assign to component
+        p_scComponent.m_shHandle = l_shSelectedHandle;
+
+        // optional: clear old lua instance
+        p_scComponent.m_stTableInstance = sol::nil;
+        p_scComponent.m_stTableInstance =
+            CScriptingEngine::s_pInstance->CreateInstance(
+                p_scComponent.m_shHandle, selectedNode);
+        CScriptingEngine::s_pInstance->ExtractTableValues(p_scComponent);
+        ImGui::CloseCurrentPopup();
+      }
+
+      if (isSelected)
+        ImGui::SetItemDefaultFocus();
+    }
+
+    ImGui::EndPopup();
+  }
+
+  if (l_asAssetSystem.isValidScript(l_shSelectedHandle)) {
+    auto *script = l_asAssetSystem.GetScript(l_shSelectedHandle);
+
+    ImGui::Text(
+        "Current: %s",
+        std::filesystem::path(script->m_strPath).filename().string().c_str());
+  } else {
+    ImGui::Text("Current: None");
+  }
+}
+
+void DrawScriptComponentMenu(uint32_t selectedNode,
+                             std::unique_ptr<GameObject> &node, Scene &scene) {
+
+  if (ImGui::CollapsingHeader("Script Component")) {
+
+    ScriptComponent &l_scScript =
+        scene.GetComponent<ScriptComponent>(selectedNode);
+
+    DrawScriptHandleSelector(l_scScript, selectedNode);
+
+    DrawScriptField(selectedNode, node, l_scScript);
+    ImGui::Separator();
+    if (ImGui::Button("Remove Component ##script")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Script;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+    }
+  }
+}
 
 std::vector<std::string> GetAvailableFlags() {
 
@@ -1302,6 +1464,17 @@ void DrawRigidBodyComponentMenu(uint32_t selectedNode,
           l_rbcRigidBodyComponent.m_jbidBodyID);
       ImGui::TextUnformatted(debugInfo.c_str());
     }
+
+    ImGui::Separator();
+    if (ImGui::Button("Remove Component #Rigidbody")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Rigidbody;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+    }
   }
 }
 
@@ -1476,6 +1649,18 @@ void DrawModelComponentMenu(uint32_t selectedNode,
     } else {
       ImGui::Text("Current material: None");
     }
+
+    ImGui::Separator();
+    if (ImGui::Button("Remove Component ##model")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Model;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+      ;
+    }
   }
 }
 
@@ -1610,12 +1795,122 @@ void DrawCameraComponentMenu(uint32_t selectedNode,
 
     l_ccCameraComponent->m_ptProjectionType =
         static_cast<EProjectionType>(l_ui8CurrentProjection);
+
+    ImGui::Separator();
+    if (ImGui::Button("Remove Component ##camera")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Camera;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+      ;
+    }
   }
 }
 
-#define CALL_ADD_FUNCTION(Type) scene.AddComponentPtr<Type>(selectedNode);
+void DrawLightComponentMenu(uint32_t selectedNode,
+                            std::unique_ptr<GameObject> &node, Scene &scene) {
 
-#define CALL_REMOVE_FUNCTION(Type) scene.RemoveComponent<Type>(selectedNode);
+  if (ImGui::CollapsingHeader("Light component")) {
+
+    auto &l_lcLightComponent = scene.GetComponent<LightComponent>(selectedNode);
+
+    const std::string l_strEnumNames[3]{"Point", "Spot", "Directional"};
+
+    uint8_t l_ui8CurrentProjection =
+        static_cast<uint8_t>(l_lcLightComponent.m_iType);
+    if (ImGui::BeginCombo(
+            "Light type",
+            l_strEnumNames[static_cast<uint8_t>(l_lcLightComponent.m_iType)]
+                .c_str())) {
+
+      for (uint8_t i = 0; i < 3; i++) {
+
+        bool l_bSelected = (l_ui8CurrentProjection == i);
+
+        if (ImGui::Selectable(l_strEnumNames[i].c_str(), l_bSelected)) {
+          l_ui8CurrentProjection = i;
+        }
+
+        if (l_bSelected) {
+
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+
+      ImGui::EndCombo();
+    }
+    l_lcLightComponent.m_iType = static_cast<LightType>(l_ui8CurrentProjection);
+
+    switch (l_lcLightComponent.m_iType) {
+
+    case eHaz::LightType::Point: {
+
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+
+      ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange);
+
+    } break;
+
+    case eHaz::LightType::Spot: {
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+
+      ImGui::DragFloat3("Direction (world space)",
+                        &l_lcLightComponent.m_v3Direction.x);
+
+      if (ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange)) {
+
+        node->m_aabbVisibleBounds.extents =
+            glm::vec3(l_lcLightComponent.m_fRange);
+      }
+
+      ImGui::DragFloat("Inner cone angle", &l_lcLightComponent.m_v2Cone.x);
+
+      ImGui::DragFloat("Outer cone angle", &l_lcLightComponent.m_v2Cone.y);
+
+    } break;
+
+    case eHaz::LightType::Directional: {
+
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+      ImGui::DragFloat3("Direction (world space)",
+                        &l_lcLightComponent.m_v3Direction.x);
+    } break;
+    }
+
+    if (eHaz_Core::Application::instance->EditorModeEnabled() &&
+        !eHaz_Core::Application::instance->IsSimulating()) {
+      if (l_lcLightComponent.m_iType != LightType::Directional)
+        Renderer::r_instance->p_debugDrawer->SubmitCube(
+            l_lcLightComponent.m_v3Position, glm::vec3(1.0f),
+            glm::vec4(l_lcLightComponent.m_v3Color, 1.0f));
+
+      if (l_lcLightComponent.m_iType == LightType::Spot ||
+          l_lcLightComponent.m_iType == LightType::Directional) {
+
+        Renderer::p_debugDrawer->SubmitSphere(l_lcLightComponent.m_v3Direction,
+                                              1.0f);
+      }
+    }
+
+    if (ImGui::Button("Remove Component ##light")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Light;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+      ;
+    }
+  }
+}
+
 void EditorUILayer::DrawInspectWindow() {
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
   auto &sceneGraph = scene.scene_graph;
@@ -1636,6 +1931,15 @@ void EditorUILayer::DrawInspectWindow() {
   if (node->HasComponentFlag(ComponentID::Camera)) {
     DrawCameraComponentMenu(selectedNode, node, scene);
   }
+  if (node->HasComponentFlag(ComponentID::Script)) {
+    DrawScriptComponentMenu(selectedNode, node, scene);
+    ;
+  }
+  if (node->HasComponentFlag(ComponentID::Light)) {
+
+    DrawLightComponentMenu(selectedNode, node, scene);
+  }
+
   // AlignForWidth(ImGui::GetWindowWidth());
 
   ImGui::SeparatorText("");
@@ -1664,6 +1968,17 @@ void EditorUILayer::DrawInspectWindow() {
         } break;
         case ComponentID::Camera: {
           CALL_ADD_FUNCTION(CameraComponent);
+
+        } break;
+        case eHaz::ComponentID::Script: {
+
+          CALL_ADD_FUNCTION(ScriptComponent);
+
+        } break;
+        case eHaz::ComponentID::Light: {
+
+          CALL_ADD_FUNCTION(LightComponent);
+
         } break;
         }
 

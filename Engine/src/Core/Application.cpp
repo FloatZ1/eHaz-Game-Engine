@@ -1,5 +1,6 @@
 #include "Engine/include/Core/Application.hpp"
 #include "Components.hpp"
+#include "Core/AssetSystem/Asset.hpp"
 #include "Core/Layer.hpp"
 #include "DataStructures.hpp"
 #include "Renderer.hpp"
@@ -11,9 +12,24 @@ Application::Application(AppSpec spec) : spec(spec) {
 
   eHaz::register_components();
   renderer.Initialize(spec.w_width, spec.w_height, spec.title, spec.fullscreen);
+
+  std::string hdr_shader =
+      eRESOURCES_PATH "Engine/Shaders/HDR_Shader_spec.json";
+
+  std::string tone_shader =
+      eRESOURCES_PATH "Engine/Shaders/Tone_Shader_spec.json";
+
   instance = this;
 
   physics_engine.Initialize();
+
+  m_seScriptingEngine.Initialize();
+
+  eHaz::ShaderHandle l_shHDR = asset_system.LoadShader(hdr_shader);
+  eHaz::ShaderHandle l_shTone = asset_system.LoadShader(tone_shader);
+
+  renderer.SetHDRShader(asset_system.GetShader(l_shHDR)->m_hashedID);
+  renderer.SetToneShader(asset_system.GetShader(l_shHDR)->m_hashedID);
 
   // renderer.p_bufferManager->BeginWritting();
 }
@@ -136,7 +152,7 @@ void Application::Run() {
     physics_engine.ProcessQueues(currentScene);
 
     while (accumulator >= FIXED_DT) {
-      if (!m_bEditorMode) {
+      if (IsSimulating()) {
         currentScene.OnFixedUpdate(FIXED_DT);
       }
       accumulator -= FIXED_DT;

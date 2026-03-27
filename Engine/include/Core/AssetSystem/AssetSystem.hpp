@@ -6,12 +6,14 @@
 #include "Core/Event.hpp"
 #include "Core/EventQueue.hpp"
 #include "DataStructs.hpp"
+#include "ShaderManager.hpp"
 
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/unordered_map.hpp>
 #include <boost/serialization/vector.hpp>
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -27,6 +29,9 @@ public:
   void SetDefaultModelShader(eHazGraphics::ShaderComboID p_id);
   void SetDefaultAnimatedModelShader(eHazGraphics::ShaderComboID p_id);
 
+  void SetHDRShader(ShaderHandle p_shHandle);
+  void SetToneShader(ShaderHandle p_shHandle);
+
   ModelHandle LoadModel(std::string p_strPath, bool p_bIsAnimated = false);
 
   TextureHandle LoadTexture(std::string p_strPath);
@@ -40,10 +45,14 @@ public:
 
   ConvexHullHandle LoadConvexHull(std::string p_strHullPath);
 
+  ScriptHandle LoadScript(std::string p_strScriptPath);
+
   bool isValidModel(ModelHandle p_Handle);
   bool isValidMaterial(MaterialHandle p_Handle);
   bool isValidTexture(TextureHandle p_Handle);
   bool isValidShader(ShaderHandle p_Handle);
+
+  bool isValidScript(ScriptHandle p_Handle);
 
   bool isValidConvexHull(ConvexHullHandle p_Handle);
   bool isValidCollisionMesh(CollisionMeshHandle p_Handle);
@@ -53,6 +62,7 @@ public:
   const SMaterialAsset *GetMaterial(MaterialHandle p_Handle);
   const STextureAsset *GetTexture(TextureHandle p_Handle);
   const SShaderAsset *GetShader(ShaderHandle p_Handle);
+  SScriptAsset *GetScript(ScriptHandle p_Handle);
 
   const SConvexHullAsset *GetConvexHull(ConvexHullHandle p_Handle);
   const SCollisionMeshAsset *GetCollisionMesh(CollisionMeshHandle p_Handle);
@@ -67,6 +77,8 @@ public:
   void RemoveConvexHull(ConvexHullHandle p_Handle);
   void RemoveCollisionMesh(CollisionMeshHandle p_Handle);
 
+  void RemoveScript(ScriptHandle p_Handle);
+
   void ClearAll();
 
   void ReloadModel(ModelHandle p_Handle);
@@ -76,6 +88,8 @@ public:
 
   void ReloadConvexHull(ConvexHullHandle p_Handle);
   void ReloadCollisionMesh(CollisionMeshHandle p_Handle);
+
+  void ReloadScript(ScriptHandle p_Handle);
 
   void OnEvent(EventQueue &p_events);
 
@@ -91,6 +105,8 @@ public:
   const std::vector<SAssetSlot<SCollisionMeshAsset>> &
   GetAllCollisionMeshes() const;
 
+  const std::vector<SAssetSlot<SScriptAsset>> &GetAllScripts() const;
+
   ModelHandle GetModelHandle(std::string p_strPath);
 
   MaterialHandle GetMaterialHandle(std::string p_strPath);
@@ -101,6 +117,8 @@ public:
 
   ConvexHullHandle GetConvexHullHandle(std::string p_strPath);
   CollisionMeshHandle GetCollisionMeshHandle(std::string p_strPath);
+
+  ScriptHandle GetScriptHandle(std::string p_strPath);
 
   std::vector<ResourceInfo> GetResourceList(ResourceType p_type);
 
@@ -113,6 +131,22 @@ public:
   void Update();
 
 private:
+  bool ScriptChanged(SScriptAsset &asset) {
+
+    if (!std::filesystem::exists(asset.m_strPath))
+      return false;
+
+    auto current = std::filesystem::last_write_time(asset.m_strPath);
+
+    if (current != asset.m_fttLastWrite) {
+      asset.m_fttLastWrite = current;
+      return true;
+    }
+
+    return false;
+  }
+
+  bool ShaderChanged(SShaderAsset &asset);
   eHazGraphics::SBufferRange m_brMaterialLocation;
 
   // Loads the model from disk
@@ -129,6 +163,9 @@ private:
   eHazGraphics::ShaderComboID m_scidDefaultModelShader;
   eHazGraphics::ShaderComboID m_scidDefaultAnimatedModelShader;
 
+  ShaderHandle m_shHDRShader;
+  ShaderHandle m_shToneShader;
+
   std::vector<SAssetSlot<SModelAsset>> m_vModelAssets;
   std::vector<SAssetSlot<SMaterialAsset>> m_vMaterialAssets;
   std::vector<SAssetSlot<STextureAsset>> m_vTextureAssets;
@@ -136,6 +173,8 @@ private:
 
   std::vector<SAssetSlot<SConvexHullAsset>> m_vConvexHullAssets;
   std::vector<SAssetSlot<SCollisionMeshAsset>> m_vCollisionMeshAssets;
+
+  std::vector<SAssetSlot<SScriptAsset>> m_vScriptAssets;
 
   std::vector<uint32_t> m_freeModelSlots;
   std::vector<uint32_t> m_freeMaterialSlots;
@@ -145,6 +184,8 @@ private:
   std::vector<uint32_t> m_freeConvexHullSlots;
   std::vector<uint32_t> m_freeCollsionMeshSlots;
 
+  std::vector<uint32_t> m_freeScriptSlots;
+
   std::unordered_map<std::string, ModelHandle> m_umModelHandles;
   std::unordered_map<std::string, MaterialHandle> m_umMaterialHandles;
   std::unordered_map<std::string, TextureHandle> m_umTextureHandles;
@@ -153,10 +194,16 @@ private:
   std::unordered_map<std::string, ConvexHullHandle> m_umConvexHullHandles;
   std::unordered_map<std::string, CollisionMeshHandle> m_umCollsionMeshHandles;
 
+  std::unordered_map<std::string, ScriptHandle> m_umScriptHandles;
+
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version) {
     ar & m_scidDefaultModelShader;
     ar & m_scidDefaultAnimatedModelShader;
+
+    ar & m_shHDRShader;
+    ar & m_shToneShader;
+
     ar & m_vModelAssets;
     ar & m_vMaterialAssets;
     ar & m_vShaderAssets;
@@ -180,6 +227,10 @@ private:
 
     ar & m_freeConvexHullSlots;
     ar & m_freeCollsionMeshSlots;
+
+    ar & m_umScriptHandles;
+    ar & m_vScriptAssets;
+    ar & m_freeScriptSlots;
   }
 };
 

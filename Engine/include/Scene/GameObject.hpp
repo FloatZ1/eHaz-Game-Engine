@@ -53,7 +53,7 @@ struct GameObject {
     return (componentMask & static_cast<uint32_t>(flag)) != 0;
   }
   // ------------- HIERARCHY ACCESS -------------
-  void SetParent(uint32_t newParent);
+
   std::vector<uint32_t> GetChildren() const { return children; }
   uint32_t GetParent() const { return parent; }
 

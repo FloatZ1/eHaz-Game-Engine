@@ -2,6 +2,7 @@
 #include "Animation/AnimatedModelManager.hpp"
 #include "BitFlags.hpp"
 #include "Components.hpp"
+#include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "DataStructs.hpp"
@@ -11,6 +12,7 @@
 #include "Octree.hpp"
 #include "Physics/Physics.hpp"
 #include "Renderer.hpp"
+#include "Scripting_Engine.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/common.hpp"
@@ -18,6 +20,7 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <fstream>
+#include <ios>
 #include <memory>
 #include <vector>
 
@@ -42,6 +45,11 @@ void Scene::RemoveGameObject(uint32_t index, bool recursive) {
     if (HasComponent<CameraComponent>(index)) {
 
       m_uiActiveCameraObjectID = 0;
+    }
+    if (HasComponent<ScriptComponent>(index)) {
+
+      CScriptingEngine::s_pInstance->CallOnDestroy(
+          GetComponent<ScriptComponent>(index).m_stTableInstance);
     }
 
     m_registry.destroy(obj.entity);
@@ -83,7 +91,7 @@ std::vector<GameObject *> Scene::GetObjectsWithComponent() {
     if (!nodePtr)
       continue;
 
-    if (HasComponent<T>(nodePtr->entity)) {
+    if (HasComponent<T>(nodePtr->index)) {
       result.push_back(nodePtr.get());
     }
   }
@@ -194,7 +202,8 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
 
   else {
 
-    if (Vec3Different(node.m_aabbVisibleBounds.extents, glm::vec3(0)))
+    if (Vec3Different(node.m_aabbVisibleBounds.extents, glm::vec3(0)) &&
+        !HasComponent<LightComponent>(node.index))
       node.m_bUbdateOctree = true;
 
     node.m_aabbVisibleBounds.extents = glm::vec3(0);
@@ -219,6 +228,27 @@ void Scene::OnUpdate(float deltaTime) {
 
     if (!scene_graph.IsValid(i))
       continue;
+
+    if (nodes[i]->HasComponentFlag(ComponentID::Script) &&
+        eHaz_Core::Application::instance->IsSimulating()) {
+
+      auto &l_scScript = GetComponent<ScriptComponent>(i);
+      if (l_scScript.m_bUpdateLuaData) {
+        CScriptingEngine::s_pInstance->ValidateData(l_scScript, i);
+
+        l_scScript.m_bUpdateLuaData = false;
+      }
+      CScriptingEngine::s_pInstance->UpdateScript(l_scScript.m_stTableInstance);
+    }
+    if (nodes[i]->HasComponentFlag(ComponentID::Light)) {
+      nodes[i]->m_bIsLight = true;
+      auto &lc = GetComponent<LightComponent>(i);
+      lc.m_v3Position = GetComponent<TransformComponent>(i).worldPosition;
+
+    } else {
+      nodes[i]->m_bIsLight = false;
+    }
+
     if (!nodes[i]->m_bUbdateOctree)
       continue;
     if (!Vec3Different(nodes[i]->m_aabbVisibleBounds.extents, glm::vec3(0)))
@@ -232,7 +262,19 @@ void Scene::OnUpdate(float deltaTime) {
   }
 }
 
-void Scene::OnFixedUpdate(float fixedDT) {}
+void Scene::OnFixedUpdate(float fixedDT) {
+  if (eHaz_Core::Application::instance->IsSimulating()) {
+    auto l_goScriptObjects = GetObjectsWithComponent<ScriptComponent>();
+
+    for (GameObject *object : l_goScriptObjects) {
+
+      auto &l_scScript = GetComponent<ScriptComponent>(object->index);
+
+      CScriptingEngine::s_pInstance->FixedUpdateScript(
+          l_scScript.m_stTableInstance, fixedDT);
+    }
+  }
+}
 
 void Scene::SubmitVisibleObjects(
     std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID, TypeFlags)>
@@ -252,21 +294,23 @@ void Scene::SubmitVisibleObjects(
       continue;
     const ModelComponent *l_mcModelComponent =
         TryGetComponent<ModelComponent>(objectID);
-
+    if (!l_mcModelComponent)
+      continue;
     const TransformComponent *l_tcTransformComponent =
         TryGetComponent<TransformComponent>(objectID);
 
     const SShaderAsset *l_saShader = CAssetSystem::m_pInstance->GetShader(
         l_mcModelComponent->m_ShaderHandle);
-
+    if (!l_saShader)
+      continue;
     const SModelAsset *l_maModelAsset =
         CAssetSystem::m_pInstance->GetModel(l_mcModelComponent->m_Handle);
-
+    if (!l_maModelAsset)
+      continue;
     const SMaterialAsset *l_matMaterialAsset =
         CAssetSystem::m_pInstance->GetMaterial(
             l_mcModelComponent->materialHandle);
-
-    if (!l_saShader)
+    if (!l_matMaterialAsset)
       continue;
 
     switch (l_maModelAsset->m_bAnimated) {
@@ -311,11 +355,20 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
   BoostOutputAdapter adapter{ar};
   entt::snapshot snapshot{m_registry};
 
+  auto view = m_registry.view<ScriptComponent>();
+
+  for (auto &script : view) {
+
+    ScriptComponent &l_scComponent = m_registry.get<ScriptComponent>(script);
+    CScriptingEngine::s_pInstance->ExtractTableValues(l_scComponent);
+  }
+
   snapshot.entities(adapter)
       .component<TransformComponent>(adapter)
       .component<ModelComponent>(adapter)
       .component<CameraComponent>(adapter)
-      .component<RigidBodyComponent>(adapter);
+      .component<RigidBodyComponent>(adapter)
+      .component<ScriptComponent>(adapter);
 }
 
 bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
@@ -356,7 +409,8 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
         .component<TransformComponent>(adapter)
         .component<ModelComponent>(adapter)
         .component<CameraComponent>(adapter)
-        .component<RigidBodyComponent>(adapter);
+        .component<RigidBodyComponent>(adapter)
+        .component<ScriptComponent>(adapter);
 
     auto view = m_registry.view<RigidBodyComponent>();
 
@@ -367,6 +421,14 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
       PhysicsEngine::s_Instance->CreateBody(
           rigidBodyComponent.m_uiSceneObjectOwnerID,
           rigidBodyComponent.m_bdDescription);
+    }
+
+    for (auto object : GetObjectsWithComponent<ScriptComponent>()) {
+
+      ScriptComponent &l_scComponent =
+          GetComponent<ScriptComponent>(object->index);
+
+      CScriptingEngine::s_pInstance->ValidateData(l_scComponent, object->index);
     }
 
     m_otOctree = COctree();

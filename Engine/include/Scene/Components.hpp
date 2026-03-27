@@ -12,8 +12,12 @@
 #include "Utils/Boost_GLM_Serialization.hpp"
 // #include "entt/core/hashed_string.hpp"
 #include "Physics/JoltImplementations.hpp"
+#include "Scripting/Script_Fields.hpp"
+#include "glm/fwd.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
+#include "sol/sol.hpp"
+#include <boost/serialization/access.hpp>
 #include <ctime>
 #include <entt/core/hashed_string.hpp>
 #include <entt/entt.hpp>
@@ -21,6 +25,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 using namespace entt::literals;
 namespace eHaz {
@@ -31,7 +36,9 @@ enum class ComponentID : uint32_t {
   Model = 1 << 1,
   Rigidbody = 1 << 2,
   Camera = 1 << 3,
-  Animator = 1 << 5
+  Animator = 1 << 5,
+  Script = 1 << 6,
+  Light = 1 << 7
 };
 // class ComponentData {
 // public:
@@ -208,7 +215,26 @@ private:
     ar & m_ptProjectionType;
   }
 };
-struct ScriptComponent {};
+struct ScriptComponent {
+
+  ScriptHandle m_shHandle;
+
+  std::vector<SScriptField> m_vFields;
+
+  sol::table m_stTableInstance; // must be validated on load
+
+  bool m_bUpdateLuaData = true;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+
+    ar & m_shHandle;
+    ar & m_vFields;
+  }
+};
 
 // ------------------- ComponentID -------------------
 
@@ -225,7 +251,52 @@ struct ScriptComponent {};
 
 // NOTE: WHEN ADDING NEW COMPONENTS ADD THEM INSIDE SCENE.HPP as well
 
+enum class LightType : uint8_t {
+
+  Point,
+  Spot,
+  Directional
+
+};
+
+struct LightComponent {
+
+  glm::vec3 m_v3Position;
+  float m_fRange;
+  glm::vec3 m_v3Color;
+  float m_fIntensity;
+  glm::vec3 m_v3Direction;
+  LightType m_iType;  // light type: point, spot, directional
+  glm::vec2 m_v2Cone; // inner , outer
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+
+    ar & m_v3Position;
+    ar & m_fRange;
+    ar & m_v3Color;
+    ar & m_fIntensity;
+    ar & m_v3Direction;
+    ar & m_iType;
+    ar & m_v2Cone;
+  }
+};
+
 static void register_components() {
+
+  REGISTER_COMPONENT(LightComponent, ComponentID::Light);
+
+  REGISTER_FIELD(LightComponent, m_v3Position);
+  REGISTER_FIELD(LightComponent, m_fRange);
+  REGISTER_FIELD(LightComponent, m_v3Color);
+  REGISTER_FIELD(LightComponent, m_fIntensity);
+  REGISTER_FIELD(LightComponent, m_v3Direction);
+  REGISTER_FIELD(LightComponent, m_iType);
+  REGISTER_FIELD(LightComponent, m_v2Cone);
+
   REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
 
   REGISTER_FIELD(CameraComponent, m_fFOV);
@@ -298,7 +369,10 @@ static void register_components() {
   // TriggerZone
 
   // ScriptComponent
-  REGISTER_COMPONENT(ScriptComponent, ComponentID::None);
+  REGISTER_COMPONENT(ScriptComponent, ComponentID::Script);
+  REGISTER_FIELD(ScriptComponent, m_shHandle);
+  REGISTER_FIELD(ScriptComponent, m_vFields);
+  REGISTER_FIELD(ScriptComponent, m_bUpdateLuaData);
 }
 
 } // namespace eHaz

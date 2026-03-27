@@ -1,13 +1,16 @@
 #include "Core/AssetSystem/AssetSystem.hpp"
+#include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 
 #include "Core/Event.hpp"
 #include "DataStructs.hpp"
 #include "MaterialManager.hpp"
+#include "Scripting_Engine.hpp"
 #include "SpecParser.hpp"
 #include "imgui.h"
 #include <Renderer.hpp>
 #include <SDL3/SDL_log.h>
+#include <algorithm>
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
@@ -20,6 +23,91 @@
 using namespace eHazGraphics;
 
 namespace eHaz {
+void CAssetSystem::SetHDRShader(ShaderHandle p_shHandle) {
+  m_shHDRShader = p_shHandle;
+}
+void CAssetSystem::SetToneShader(ShaderHandle p_shHandle) {
+  m_shToneShader = p_shHandle;
+}
+bool CAssetSystem::ShaderChanged(SShaderAsset &asset) {
+
+  // --- Spec file ---
+  if (!std::filesystem::exists(asset.m_strSpecPath))
+    return false;
+
+  auto specCurrent = std::filesystem::last_write_time(asset.m_strSpecPath);
+
+  if (specCurrent != asset.m_specLastWrite) {
+    asset.m_specLastWrite = specCurrent;
+    return true;
+  }
+
+  // --- Compute shader ---
+  if (asset.m_scSpec.computePath.has_value()) {
+
+    const auto &path = asset.m_scSpec.computePath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_computeLastWrite) {
+      asset.m_computeLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Geometry shader ---
+  if (asset.m_scSpec.geometryPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.geometryPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_geometryLastWrite) {
+      asset.m_geometryLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Vertex shader ---
+  if (asset.m_scSpec.vertexPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.vertexPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_vertexLastWrite) {
+      asset.m_vertexLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Fragment shader ---
+  if (asset.m_scSpec.fragmentPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.fragmentPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_fragmentLastWrite) {
+      asset.m_fragmentLastWrite = current;
+      return true;
+    }
+  }
+
+  return false;
+}
 bool CAssetSystem::isValidConvexHull(ConvexHullHandle p_Handle) {
   if (p_Handle.index >= m_vConvexHullAssets.size())
     return false;
@@ -385,9 +473,29 @@ ShaderHandle CAssetSystem::LoadShader(std::string p_strDescriptorPath) {
     SShaderSpec l_ssShaderSpec = ShaderSpecParser::ParseShaderSpec(l_spec);
 
     SShaderAsset l_saAsset;
+
+    l_saAsset.m_specLastWrite =
+        std::filesystem::last_write_time(p_strDescriptorPath);
     l_saAsset.m_bfShaderFlags = l_ssShaderSpec.pipelineFlags;
     l_saAsset.m_strSpecPath = p_strDescriptorPath;
     l_saAsset.m_scSpec = l_ssShaderSpec;
+
+    if (l_ssShaderSpec.computePath) {
+      l_saAsset.m_computeLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.computePath.value());
+
+    } else {
+
+      if (l_ssShaderSpec.geometryPath)
+        l_saAsset.m_geometryLastWrite = std::filesystem::last_write_time(
+            l_ssShaderSpec.geometryPath.value());
+
+      l_saAsset.m_vertexLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.vertexPath.value());
+
+      l_saAsset.m_fragmentLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.fragmentPath.value());
+    }
 
     ShaderHandle l_shHandle;
 
@@ -698,6 +806,8 @@ void CAssetSystem::ClearAll() {
     l_renderer->p_shaderManager->RemoveShaderProgramme(asset.asset.m_hashedID);
   }
 
+  CScriptingEngine::s_pInstance->Clear();
+
   Renderer::p_AnimatedModelManager->ClearEverything();
   Renderer::p_materialManager->ClearMaterials();
   Renderer::p_meshManager->ClearEverything();
@@ -726,6 +836,10 @@ void CAssetSystem::ClearAll() {
 
   m_umCollsionMeshHandles.clear();
   m_umConvexHullHandles.clear();
+
+  m_umScriptHandles.clear();
+  m_freeScriptSlots.clear();
+  m_vScriptAssets.clear();
 }
 void CAssetSystem::ReloadModel(ModelHandle p_Handle) {
 
@@ -800,7 +914,26 @@ void CAssetSystem::ReloadShader(ShaderHandle p_Handle) {
 
   auto &l_saShader = m_vShaderAssets[p_Handle.index];
 
+  if (l_saShader.asset.m_scSpec.vertexPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.vertexPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.fragmentPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.fragmentPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.geometryPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.geometryPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.computePath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.vertexPath.value());
+  }
+
   l_renderer->p_shaderManager->RecompileProgramme(l_saShader.asset.m_hashedID);
+
+  SDL_Log("Reloding Shader: %s", l_saShader.asset.m_strSpecPath.c_str());
 }
 
 const std::vector<SAssetSlot<SModelAsset>> &CAssetSystem::GetAllModels() const {
@@ -1008,6 +1141,13 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
   m_freeConvexHullSlots = other.m_freeConvexHullSlots;
   m_freeCollsionMeshSlots = other.m_freeCollsionMeshSlots;
 
+  m_freeScriptSlots = other.m_freeScriptSlots;
+  m_vScriptAssets = other.m_vScriptAssets;
+  m_umScriptHandles = other.m_umScriptHandles;
+
+  m_shHDRShader = other.m_shHDRShader;
+  m_shToneShader = other.m_shToneShader;
+
   m_bInvalid = true;
 
   // -------- now validate + load --------
@@ -1063,6 +1203,14 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
 
     ValidateMaterial(material);
   }
+
+  for (auto &script : m_umScriptHandles) {
+
+    CScriptingEngine::s_pInstance->LoadScript(script.second);
+  }
+
+  SetHDRShader(m_shHDRShader);
+  SetToneShader(m_shToneShader);
 
   m_bInvalid = false;
 }
@@ -1187,6 +1335,27 @@ void CAssetSystem::Update() {
   Renderer::r_instance->UpdateDynamicData(
       m_brMaterialLocation, l_materials.first.data(),
       l_materials.first.size() * sizeof(PBRMaterial));
+
+  if (eHaz_Core::Application::instance->EditorModeEnabled() == true) {
+
+    for (auto &script : m_vScriptAssets) {
+      if (!script.alive)
+        continue;
+      if (ScriptChanged(script.asset) && m_bInvalid == false) {
+
+        ReloadScript(m_umScriptHandles[script.asset.m_strPath]);
+      }
+    }
+
+    for (auto &shader : m_vShaderAssets) {
+      if (!shader.alive)
+        continue;
+
+      if (ShaderChanged(shader.asset) && m_bInvalid == false) {
+        ReloadShader(m_umShaderHandles[shader.asset.m_strSpecPath]);
+      }
+    }
+  }
 }
 void CAssetSystem::ValidateMaterial(SAssetSlot<SMaterialAsset> &p_maMaterial) {
   SMaterialSpec l_msSpec = MaterialSpecParser::ParseMaterialSpec(
@@ -1236,4 +1405,100 @@ void CAssetSystem::ValidateTexture(SAssetSlot<STextureAsset> &p_taTexture) {
   p_taTexture.asset.m_uiTextureID =
       Renderer::p_materialManager->LoadTexture(p_taTexture.asset.m_strPath);
 }
+ScriptHandle CAssetSystem::LoadScript(std::string p_strScriptPath) {
+
+  if (m_umScriptHandles.contains(p_strScriptPath)) {
+
+    return m_umScriptHandles[p_strScriptPath];
+  }
+
+  ScriptHandle l_shHandle;
+  SScriptAsset l_saAsset;
+  l_saAsset.m_fttLastWrite = std::filesystem::last_write_time(p_strScriptPath);
+
+  l_saAsset.m_strPath = p_strScriptPath;
+  if (m_freeScriptSlots.size() > 0) {
+
+    uint32_t l_uiSlotID = m_freeScriptSlots.back();
+
+    m_vScriptAssets[l_uiSlotID].generation++;
+    l_shHandle.generation = m_vScriptAssets[l_uiSlotID].generation;
+    m_vScriptAssets[l_uiSlotID].asset = l_saAsset;
+    m_vScriptAssets[l_uiSlotID].alive = true;
+
+    l_shHandle.index = l_uiSlotID;
+  } else {
+    SAssetSlot<SScriptAsset> l_asSlot;
+    l_asSlot.asset = l_saAsset;
+    l_asSlot.alive = true;
+
+    m_vScriptAssets.push_back(l_asSlot);
+
+    uint32_t l_uiSlotID = m_vScriptAssets.size() - 1;
+
+    l_shHandle.generation = m_vScriptAssets[l_uiSlotID].generation;
+    l_shHandle.index = l_uiSlotID;
+  }
+
+  CScriptingEngine::s_pInstance->LoadScript(l_shHandle);
+
+  m_umScriptHandles[p_strScriptPath] = l_shHandle;
+
+  return l_shHandle;
+}
+
+bool CAssetSystem::isValidScript(ScriptHandle p_Handle) {
+
+  if (p_Handle.index >= m_vScriptAssets.size())
+    return false;
+
+  if (p_Handle.generation != m_vScriptAssets[p_Handle.index].generation)
+    return false;
+
+  if (m_vScriptAssets[p_Handle.index].alive == false)
+    return false;
+
+  return true;
+}
+
+SScriptAsset *CAssetSystem::GetScript(ScriptHandle p_Handle) {
+
+  if (isValidScript(p_Handle)) {
+    return &m_vScriptAssets[p_Handle.index].asset;
+  }
+  return nullptr;
+}
+
+void CAssetSystem::RemoveScript(ScriptHandle p_Handle) {
+
+  if (isValidScript(p_Handle)) {
+    m_freeScriptSlots.push_back(p_Handle.index);
+
+    m_vScriptAssets[p_Handle.index].alive = false;
+
+    m_umScriptHandles.erase(m_vScriptAssets[p_Handle.index].asset.m_strPath);
+  }
+}
+
+void CAssetSystem::ReloadScript(ScriptHandle p_Handle) {
+
+  CScriptingEngine::s_pInstance->ReloadScript(p_Handle);
+
+  SDL_Log("Reloding Script: %s", GetScript(p_Handle)->m_strPath.c_str());
+}
+
+const std::vector<SAssetSlot<SScriptAsset>> &
+CAssetSystem::GetAllScripts() const {
+
+  return m_vScriptAssets;
+}
+
+ScriptHandle CAssetSystem::GetScriptHandle(std::string p_strPath) {
+
+  if (m_umScriptHandles.contains(p_strPath))
+    return m_umScriptHandles[p_strPath];
+
+  return ScriptHandle();
+}
+
 } // namespace eHaz

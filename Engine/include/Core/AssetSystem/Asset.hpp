@@ -7,6 +7,7 @@
 #include <boost/serialization/optional.hpp>
 #include <boost/serialization/serialization.hpp>
 #include <cstdint>
+#include <filesystem>
 #include <optional>
 #include <vector>
 
@@ -153,6 +154,11 @@ struct SShaderAsset {
   eHazGraphics::BitFlag<eHazGraphics::ShaderManagerFlags> m_bfShaderFlags;
   eHazGraphics::ShaderComboID m_hashedID;
   SShaderSpec m_scSpec;
+  std::filesystem::file_time_type m_specLastWrite;
+  std::filesystem::file_time_type m_computeLastWrite;
+  std::filesystem::file_time_type m_geometryLastWrite;
+  std::filesystem::file_time_type m_vertexLastWrite;
+  std::filesystem::file_time_type m_fragmentLastWrite;
 
 private:
   friend class boost::serialization::access;
@@ -202,12 +208,29 @@ private:
   }
 };
 
+struct SScriptAsset {
+
+  std::string m_strPath;
+
+  std::filesystem::file_time_type m_fttLastWrite;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_strPath;
+  }
+};
+
 using ModelHandle = SAssetHandle;
 using MaterialHandle = SAssetHandle;
 using TextureHandle = SAssetHandle;
 using ShaderHandle = SAssetHandle;
 using ConvexHullHandle = SAssetHandle;
 using CollisionMeshHandle = SAssetHandle;
+using ScriptHandle = SAssetHandle;
+
 } // namespace eHaz
 
 namespace std {

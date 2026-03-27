@@ -8,6 +8,8 @@
 #include "Octree.hpp"
 #include "Renderer.hpp"
 #include "Scene-graph.hpp"
+#include "entt/core/fwd.hpp"
+#include "entt/core/type_info.hpp"
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "entt/entity/registry.hpp"
@@ -15,6 +17,7 @@
 #include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
 #include <SDL3/SDL_log.h>
+#include <execution>
 #include <functional>
 #include <unordered_map>
 #include <vector>
@@ -24,11 +27,13 @@ struct Scene {
 
 public:
   struct PendingAction {
-    enum Type { Delete, Create, Rename } type;
+    enum Type { Delete, Create, Rename, DeleteComponent } type;
     uint32_t nodeID;
 
     std::string newName;
     uint32_t parrentID;
+
+    ComponentID component;
   };
 
   std::string m_strScenePath = "";
@@ -120,6 +125,11 @@ public:
            m_registry.any_of<T>(node->entity);
   }
 
+  bool HasComponent(const uint32_t objectID,
+                    const ComponentID p_cidComponent) const {
+    const auto &node = scene_graph.nodes[objectID];
+    return node->HasComponentFlag(p_cidComponent);
+  }
   template <typename T> T &GetComponent(uint32_t objectID) {
     entt::entity &entity = scene_graph.nodes[objectID]->entity;
 
@@ -148,6 +158,7 @@ public:
 
     m_registry.remove<T>(entity);
   }
+
   template <typename T> std::vector<GameObject *> GetObjectsWithComponent();
 
   void SetStaticObjectStatus(int index, bool value) {
@@ -171,6 +182,11 @@ public:
       case PendingAction::Rename: {
 
         scene_graph.nodes[act.nodeID]->name = act.newName;
+
+      } break;
+      case PendingAction::DeleteComponent: {
+
+        RemoveComponentDelayed(act);
 
       } break;
       }
@@ -203,6 +219,39 @@ public:
   bool LoadSceneFromDisk(std::string p_strScenePath);
 
 private:
+  void RemoveComponentDelayed(PendingAction &action) {
+
+    if (scene_graph.nodes[action.nodeID]->HasComponentFlag(action.component)) {
+
+      scene_graph.nodes[action.nodeID]->RemoveComponentFlag(action.component);
+    }
+
+    switch (action.component) {
+
+    case eHaz::ComponentID::Model: {
+
+      m_registry.remove<ModelComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    } break;
+    case eHaz::ComponentID::Rigidbody: {
+      m_registry.remove<RigidBodyComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    } break;
+    case eHaz::ComponentID::Camera: {
+      m_registry.remove<CameraComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    } break;
+    case eHaz::ComponentID::Script: {
+      m_registry.remove<ScriptComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    } break;
+    case eHaz::ComponentID::Light: {
+      m_registry.remove<LightComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    }
+    }
+  }
+
   friend class boost::serialization::access;
 
   template <class Archive>

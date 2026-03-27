@@ -5,10 +5,11 @@
 layout(location = 0) in vec3 aPos;
 layout(location = 1) in vec2 aTexCoords;
 layout(location = 2) in vec3 aNormal;
-
+layout(location = 5) in vec4 aTangent;
+layout(location = 6) in vec3 aBiTangent;
 // ============================ Outputs ============================
 out vec2 TexCoords;
-out vec3 FragNormal;
+out mat3 TBN;
 flat out uint MatID;
 
 // ============================ Camera ============================
@@ -61,11 +62,24 @@ void main()
     uint partMat = inst.modelMatID;
     mat4 partModel = modelMat[partMat];
 
-    // Compute world-space position
-    vec4 worldPos = inst.model * partModel * vec4(aPos, 1.0);
+    mat4 modelMatrix = inst.model * partModel;
 
-    // Normal transform
-    FragNormal = normalize(mat3(inst.model) * aNormal);
+    // Compute world-space position
+    vec4 worldPos = modelMatrix * vec4(aPos, 1.0);
+
+    // 1. Transform Normal and Tangent to World Space
+    // We use mat3(modelMatrix) to ignore translation
+    vec3 T = normalize(mat3(modelMatrix) * aTangent.xyz);
+    vec3 N = normalize(mat3(modelMatrix) * aNormal);
+
+    // 2. Re-orthogonalize T with respect to N (Gram-Schmidt process)
+    T = normalize(T - dot(T, N) * N);
+
+    // 3. Calculate Bitangent using the w component for handedness
+    vec3 B = cross(N, T) * aTangent.w;
+
+    // 4. Create the TBN matrix
+    TBN = mat3(T, B, N);
 
     // Clip-space transform
     gl_Position = camMats.projection * camMats.view * worldPos;

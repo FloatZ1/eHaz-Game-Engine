@@ -19,7 +19,6 @@
 #include <iterator>
 #include <memory>
 #include <utility>
-
 using namespace eHazGraphics;
 class AppLayer : public eHaz::Layer {
 

@@ -110,8 +110,10 @@ void COctree::Insert(GameObject &p_goObject) {
     if (l_iFitCount != 1) {
 
       p_goObject.m_uiOctreeIndex = l_iCurrentNode;
-
-      m_onNodes[l_iCurrentNode].m_vSceneObjectIds.push_back(p_goObject.index);
+      if (!p_goObject.m_bIsLight)
+        m_onNodes[l_iCurrentNode].m_vSceneObjectIds.push_back(p_goObject.index);
+      else
+        m_onNodes[l_iCurrentNode].m_vSceneLightIds.push_back(p_goObject.index);
       return;
     } else if (l_iFitCount == 1) {
 
@@ -126,7 +128,8 @@ void COctree::Insert(GameObject &p_goObject) {
   m_onNodes[l_iCurrentNode].m_vSceneObjectIds.push_back(p_goObject.index);
 }
 void COctree::Remove(GameObject &p_goObject) {
-
+  if (p_goObject.m_uiOctreeIndex == INVALID_OCTREE_INDEX)
+    return;
   SOctNode &l_onContainingNode = m_onNodes[p_goObject.m_uiOctreeIndex];
 
   l_onContainingNode.m_vSceneObjectIds.erase(

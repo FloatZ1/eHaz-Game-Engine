@@ -6,6 +6,7 @@
 #include "Core/Input/KeyCodes.hpp"
 #include "Core/Input/MouseCodes.hpp"
 #include <cstring>
+#include <memory>
 namespace eHaz {
 
 class InputSystem {
@@ -18,6 +19,10 @@ private:
       false, false, false,
       false, false, false}; // im not changing the Mouse code layouts im scared.
 
+  bool prevMouseButtonState[6] = {false, false, false, false, false, false};
+  bool mouseButtonPressedState[6] = {false, false, false, false, false, false};
+  bool mouseButtonReleasedState[6] = {false, false, false, false, false, false};
+
   bool prevKeyState[512];
   bool keyState[512];
 
@@ -29,11 +34,15 @@ private:
   void SetKeyState(EHAZ_Keycode key, bool isPressed);
 
 public:
+  static std::unique_ptr<InputSystem> m_pInstance;
+
   InputSystem() {
     std::memset(keyState, false, sizeof(keyState));
     std::memset(prevKeyState, false, sizeof(prevKeyState));
     std::memset(keyReleasedState, false, sizeof(keyReleasedState));
     std::memset(keyPressedState, false, sizeof(keyPressedState));
+
+    m_pInstance.reset(this);
   }
 
   bool GetKeyDown(EHAZ_Keycode key) const;

@@ -9,10 +9,11 @@ layout(location = 1) in vec2 aTexCoords;
 layout(location = 2) in vec3 aNormal;
 layout(location = 3) in ivec4 aBoneIDs;
 layout(location = 4) in vec4 aBoneWeights;
-
+layout(location = 5) in vec4 aTangent;
+layout(location = 6) in vec3 aBiTangent;
 // ============================ Outputs ============================
 out vec2 TexCoords;
-out vec3 FragNormal;
+out mat3 TBN;
 flat out uint MatID;
 
 // ============================ Camera (UBO/SSBO) ============================
@@ -94,9 +95,20 @@ void main()
     posSkinned.w = 1.0f;
 
     // --- Transform to world space ---
-    vec4 worldPos = model * posSkinned;
-    FragNormal = normalize(mat3(model) * normSkinned.xyz);
 
+    vec4 worldPos = model * posSkinned;
+    //FragNormal = normalize(mat3(model) * normSkinned.xyz);
+    vec3 T = normalize(mat3(model) * aTangent.xyz);
+    vec3 N = normalize(mat3(model) * normSkinned);
+
+    // 2. Re-orthogonalize T with respect to N (Gram-Schmidt process)
+    T = normalize(T - dot(T, N) * N);
+
+    // 3. Calculate Bitangent using the w component for handedness
+    vec3 B = cross(N, T) * aTangent.w;
+
+    // 4. Create the TBN matrix
+    TBN = mat3(T, B, N);
     // --- Clip space ---
     gl_Position = camMats.projection * camMats.view * worldPos;
 }
