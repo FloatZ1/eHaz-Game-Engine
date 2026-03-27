@@ -35,7 +35,7 @@ void main() {
 #extension GL_ARB_bindless_texture : require
 
 in vec2 TexCoords;
-in vec3 FragNormal;
+in mat3 TBN;
 flat in uint MatID;
 
 struct Material {
@@ -63,13 +63,20 @@ void main()
     sampler2D albedoTex = materials[MatID].albedo;
     sampler2D prmTex = materials[MatID].prm;
     sampler2D emissionTex = materials[MatID].emission;
+    sampler2D normalTex = materials[MatID].normalMap;
 
     vec3 albedo = texture(albedoTex, TexCoords).rgb;
     vec3 prm = texture(prmTex, TexCoords).rgb;
     vec3 emission = texture(emissionTex, TexCoords).rgb;
 
+    vec3 localNormal = texture(normalTex, TexCoords).rgb;
+    localNormal = normalize(localNormal * 2.0 - 1.0);
+
+    vec3 worldNormal = normalize(TBN * localNormal);
+
+    gNormal = worldNormal * 0.5 + 0.5;
     gAlbedo = vec4(albedo, 1.0);
-    gNormal = normalize(FragNormal) * 0.5 + 0.5; // pack to 0-1
+    // gNormal = normalize(FragNormal) * 0.5 + 0.5; // pack to 0-1
     gPRM = prm;
     gEmission = emission;
 }

@@ -6,6 +6,7 @@
 #include "Core/Event.hpp"
 #include "Core/EventQueue.hpp"
 #include "DataStructs.hpp"
+#include "ShaderManager.hpp"
 
 #include <boost/serialization/serialization.hpp>
 #include <boost/serialization/unordered_map.hpp>
@@ -27,6 +28,9 @@ public:
 
   void SetDefaultModelShader(eHazGraphics::ShaderComboID p_id);
   void SetDefaultAnimatedModelShader(eHazGraphics::ShaderComboID p_id);
+
+  void SetHDRShader(ShaderHandle p_shHandle);
+  void SetToneShader(ShaderHandle p_shHandle);
 
   ModelHandle LoadModel(std::string p_strPath, bool p_bIsAnimated = false);
 
@@ -142,6 +146,7 @@ private:
     return false;
   }
 
+  bool ShaderChanged(SShaderAsset &asset);
   eHazGraphics::SBufferRange m_brMaterialLocation;
 
   // Loads the model from disk
@@ -157,6 +162,9 @@ private:
 
   eHazGraphics::ShaderComboID m_scidDefaultModelShader;
   eHazGraphics::ShaderComboID m_scidDefaultAnimatedModelShader;
+
+  ShaderHandle m_shHDRShader;
+  ShaderHandle m_shToneShader;
 
   std::vector<SAssetSlot<SModelAsset>> m_vModelAssets;
   std::vector<SAssetSlot<SMaterialAsset>> m_vMaterialAssets;
@@ -192,6 +200,10 @@ private:
   void serialize(Archive &ar, const unsigned int version) {
     ar & m_scidDefaultModelShader;
     ar & m_scidDefaultAnimatedModelShader;
+
+    ar & m_shHDRShader;
+    ar & m_shToneShader;
+
     ar & m_vModelAssets;
     ar & m_vMaterialAssets;
     ar & m_vShaderAssets;

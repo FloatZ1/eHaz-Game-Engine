@@ -13,6 +13,7 @@
 // #include "entt/core/hashed_string.hpp"
 #include "Physics/JoltImplementations.hpp"
 #include "Scripting/Script_Fields.hpp"
+#include "glm/fwd.hpp"
 #include "glm/gtc/quaternion.hpp"
 #include "glm/vec3.hpp"
 #include "sol/sol.hpp"
@@ -36,7 +37,8 @@ enum class ComponentID : uint32_t {
   Rigidbody = 1 << 2,
   Camera = 1 << 3,
   Animator = 1 << 5,
-  Script = 1 << 6
+  Script = 1 << 6,
+  Light = 1 << 7
 };
 // class ComponentData {
 // public:
@@ -249,7 +251,52 @@ private:
 
 // NOTE: WHEN ADDING NEW COMPONENTS ADD THEM INSIDE SCENE.HPP as well
 
+enum class LightType : uint8_t {
+
+  Point,
+  Spot,
+  Directional
+
+};
+
+struct LightComponent {
+
+  glm::vec3 m_v3Position;
+  float m_fRange;
+  glm::vec3 m_v3Color;
+  float m_fIntensity;
+  glm::vec3 m_v3Direction;
+  LightType m_iType;  // light type: point, spot, directional
+  glm::vec2 m_v2Cone; // inner , outer
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+
+    ar & m_v3Position;
+    ar & m_fRange;
+    ar & m_v3Color;
+    ar & m_fIntensity;
+    ar & m_v3Direction;
+    ar & m_iType;
+    ar & m_v2Cone;
+  }
+};
+
 static void register_components() {
+
+  REGISTER_COMPONENT(LightComponent, ComponentID::Light);
+
+  REGISTER_FIELD(LightComponent, m_v3Position);
+  REGISTER_FIELD(LightComponent, m_fRange);
+  REGISTER_FIELD(LightComponent, m_v3Color);
+  REGISTER_FIELD(LightComponent, m_fIntensity);
+  REGISTER_FIELD(LightComponent, m_v3Direction);
+  REGISTER_FIELD(LightComponent, m_iType);
+  REGISTER_FIELD(LightComponent, m_v2Cone);
+
   REGISTER_COMPONENT(CameraComponent, ComponentID::Camera);
 
   REGISTER_FIELD(CameraComponent, m_fFOV);

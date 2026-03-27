@@ -202,7 +202,8 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
 
   else {
 
-    if (Vec3Different(node.m_aabbVisibleBounds.extents, glm::vec3(0)))
+    if (Vec3Different(node.m_aabbVisibleBounds.extents, glm::vec3(0)) &&
+        !HasComponent<LightComponent>(node.index))
       node.m_bUbdateOctree = true;
 
     node.m_aabbVisibleBounds.extents = glm::vec3(0);
@@ -238,6 +239,14 @@ void Scene::OnUpdate(float deltaTime) {
         l_scScript.m_bUpdateLuaData = false;
       }
       CScriptingEngine::s_pInstance->UpdateScript(l_scScript.m_stTableInstance);
+    }
+    if (nodes[i]->HasComponentFlag(ComponentID::Light)) {
+      nodes[i]->m_bIsLight = true;
+      auto &lc = GetComponent<LightComponent>(i);
+      lc.m_v3Position = GetComponent<TransformComponent>(i).worldPosition;
+
+    } else {
+      nodes[i]->m_bIsLight = false;
     }
 
     if (!nodes[i]->m_bUbdateOctree)

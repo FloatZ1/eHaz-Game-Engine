@@ -245,6 +245,10 @@ private:
       m_registry.remove<ScriptComponent>(
           scene_graph.nodes[action.nodeID]->entity);
     } break;
+    case eHaz::ComponentID::Light: {
+      m_registry.remove<LightComponent>(
+          scene_graph.nodes[action.nodeID]->entity);
+    }
     }
   }
 

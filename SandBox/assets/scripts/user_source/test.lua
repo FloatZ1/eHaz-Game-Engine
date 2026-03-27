@@ -14,17 +14,51 @@ function PrintMessage:OnUpdate(dt)
 	if not self.enabled then
 		return
 	end
-
-	if Input.GetKeyDown(KeyCode.G) then
+	---@type RigidBodyComponent
+	local rb = Scene.GetComponent(self.gameObject.index, ComponentID.Rigidbody)
+	if not rb then
+		print("dasdasdasd")
+	end
+	if Input.GetKeyDown(KeyCode.D) then
 		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
 
-		---@type RigidBodyComponent
-		local rb = Scene.GetComponent(self.gameObject.index, ComponentID.Rigidbody)
-		if not rb then
-			print("dasdasdasd")
-		end
-		local force = Vector3.new(100.0, 100.0, 0.0)
-		Physics.AddForce(rb, force)
+		local force = Vector3.new(100.0, 0.0, 0.0)
+		Physics.AddImpulse(rb, force)
+	end
+
+	if Input.GetKeyDown(KeyCode.A) then
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		local force = Vector3.new(-100.0, 0.0, 0.0)
+		Physics.AddImpulse(rb, force)
+	end
+
+	if Input.GetKeyDown(KeyCode.W) then
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		local force = Vector3.new(0.0, 0.0, -100.0)
+		Physics.AddImpulse(rb, force)
+	end
+
+	if Input.GetKeyDown(KeyCode.S) then
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		local force = Vector3.new(0.0, 0.0, 100.0)
+		Physics.AddImpulse(rb, force)
+	end
+
+	if Input.GetKeyDown(KeyCode.SPACE) then
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		local force = Vector3.new(0.0, 1000.0, 0.0)
+		Physics.AddImpulse(rb, force)
+	end
+
+	if Input.GetKeyDown(KeyCode.LCTRL) then
+		-- print("[Lua] Update (" .. tostring(1884) .. "): " .. self.message)
+
+		local force = Vector3.new(0.0, -1000.0, 0.0)
+		Physics.AddImpulse(rb, force)
 	end
 end
 
@@ -33,7 +67,7 @@ function PrintMessage:OnDestroy()
 end
 
 function PrintMessage:OnFixedUpdate(dt)
-	print("OOGA BOOGA FIXED UPDATE")
+	--  print("OOGA BOOGA FIXED UPDATE")
 end
 
 return PrintMessage

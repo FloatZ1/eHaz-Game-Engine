@@ -10,6 +10,7 @@
 #include "imgui.h"
 #include <Renderer.hpp>
 #include <SDL3/SDL_log.h>
+#include <algorithm>
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
@@ -22,6 +23,91 @@
 using namespace eHazGraphics;
 
 namespace eHaz {
+void CAssetSystem::SetHDRShader(ShaderHandle p_shHandle) {
+  m_shHDRShader = p_shHandle;
+}
+void CAssetSystem::SetToneShader(ShaderHandle p_shHandle) {
+  m_shToneShader = p_shHandle;
+}
+bool CAssetSystem::ShaderChanged(SShaderAsset &asset) {
+
+  // --- Spec file ---
+  if (!std::filesystem::exists(asset.m_strSpecPath))
+    return false;
+
+  auto specCurrent = std::filesystem::last_write_time(asset.m_strSpecPath);
+
+  if (specCurrent != asset.m_specLastWrite) {
+    asset.m_specLastWrite = specCurrent;
+    return true;
+  }
+
+  // --- Compute shader ---
+  if (asset.m_scSpec.computePath.has_value()) {
+
+    const auto &path = asset.m_scSpec.computePath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_computeLastWrite) {
+      asset.m_computeLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Geometry shader ---
+  if (asset.m_scSpec.geometryPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.geometryPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_geometryLastWrite) {
+      asset.m_geometryLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Vertex shader ---
+  if (asset.m_scSpec.vertexPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.vertexPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_vertexLastWrite) {
+      asset.m_vertexLastWrite = current;
+      return true;
+    }
+  }
+
+  // --- Fragment shader ---
+  if (asset.m_scSpec.fragmentPath.has_value()) {
+
+    const auto &path = asset.m_scSpec.fragmentPath.value();
+
+    if (!std::filesystem::exists(path))
+      return false;
+
+    auto current = std::filesystem::last_write_time(path);
+
+    if (current != asset.m_fragmentLastWrite) {
+      asset.m_fragmentLastWrite = current;
+      return true;
+    }
+  }
+
+  return false;
+}
 bool CAssetSystem::isValidConvexHull(ConvexHullHandle p_Handle) {
   if (p_Handle.index >= m_vConvexHullAssets.size())
     return false;
@@ -387,9 +473,29 @@ ShaderHandle CAssetSystem::LoadShader(std::string p_strDescriptorPath) {
     SShaderSpec l_ssShaderSpec = ShaderSpecParser::ParseShaderSpec(l_spec);
 
     SShaderAsset l_saAsset;
+
+    l_saAsset.m_specLastWrite =
+        std::filesystem::last_write_time(p_strDescriptorPath);
     l_saAsset.m_bfShaderFlags = l_ssShaderSpec.pipelineFlags;
     l_saAsset.m_strSpecPath = p_strDescriptorPath;
     l_saAsset.m_scSpec = l_ssShaderSpec;
+
+    if (l_ssShaderSpec.computePath) {
+      l_saAsset.m_computeLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.computePath.value());
+
+    } else {
+
+      if (l_ssShaderSpec.geometryPath)
+        l_saAsset.m_geometryLastWrite = std::filesystem::last_write_time(
+            l_ssShaderSpec.geometryPath.value());
+
+      l_saAsset.m_vertexLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.vertexPath.value());
+
+      l_saAsset.m_fragmentLastWrite =
+          std::filesystem::last_write_time(l_ssShaderSpec.fragmentPath.value());
+    }
 
     ShaderHandle l_shHandle;
 
@@ -808,7 +914,26 @@ void CAssetSystem::ReloadShader(ShaderHandle p_Handle) {
 
   auto &l_saShader = m_vShaderAssets[p_Handle.index];
 
+  if (l_saShader.asset.m_scSpec.vertexPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.vertexPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.fragmentPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.fragmentPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.geometryPath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.geometryPath.value());
+  }
+  if (l_saShader.asset.m_scSpec.computePath) {
+    l_renderer->p_shaderManager->ReloadShader(
+        l_saShader.asset.m_scSpec.vertexPath.value());
+  }
+
   l_renderer->p_shaderManager->RecompileProgramme(l_saShader.asset.m_hashedID);
+
+  SDL_Log("Reloding Shader: %s", l_saShader.asset.m_strSpecPath.c_str());
 }
 
 const std::vector<SAssetSlot<SModelAsset>> &CAssetSystem::GetAllModels() const {
@@ -1020,6 +1145,9 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
   m_vScriptAssets = other.m_vScriptAssets;
   m_umScriptHandles = other.m_umScriptHandles;
 
+  m_shHDRShader = other.m_shHDRShader;
+  m_shToneShader = other.m_shToneShader;
+
   m_bInvalid = true;
 
   // -------- now validate + load --------
@@ -1080,6 +1208,9 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
 
     CScriptingEngine::s_pInstance->LoadScript(script.second);
   }
+
+  SetHDRShader(m_shHDRShader);
+  SetToneShader(m_shToneShader);
 
   m_bInvalid = false;
 }
@@ -1215,6 +1346,15 @@ void CAssetSystem::Update() {
         ReloadScript(m_umScriptHandles[script.asset.m_strPath]);
       }
     }
+
+    for (auto &shader : m_vShaderAssets) {
+      if (!shader.alive)
+        continue;
+
+      if (ShaderChanged(shader.asset) && m_bInvalid == false) {
+        ReloadShader(m_umShaderHandles[shader.asset.m_strSpecPath]);
+      }
+    }
   }
 }
 void CAssetSystem::ValidateMaterial(SAssetSlot<SMaterialAsset> &p_maMaterial) {
@@ -1343,6 +1483,8 @@ void CAssetSystem::RemoveScript(ScriptHandle p_Handle) {
 void CAssetSystem::ReloadScript(ScriptHandle p_Handle) {
 
   CScriptingEngine::s_pInstance->ReloadScript(p_Handle);
+
+  SDL_Log("Reloding Script: %s", GetScript(p_Handle)->m_strPath.c_str());
 }
 
 const std::vector<SAssetSlot<SScriptAsset>> &

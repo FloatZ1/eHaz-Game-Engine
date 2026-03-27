@@ -154,6 +154,11 @@ struct SShaderAsset {
   eHazGraphics::BitFlag<eHazGraphics::ShaderManagerFlags> m_bfShaderFlags;
   eHazGraphics::ShaderComboID m_hashedID;
   SShaderSpec m_scSpec;
+  std::filesystem::file_time_type m_specLastWrite;
+  std::filesystem::file_time_type m_computeLastWrite;
+  std::filesystem::file_time_type m_geometryLastWrite;
+  std::filesystem::file_time_type m_vertexLastWrite;
+  std::filesystem::file_time_type m_fragmentLastWrite;
 
 private:
   friend class boost::serialization::access;

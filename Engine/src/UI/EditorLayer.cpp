@@ -12,6 +12,7 @@
 #include "Jolt/Physics/Body/MotionType.h"
 #include "Model.hpp"
 #include "OS_Dialogues.hpp"
+#include "Octree.hpp"
 #include "Physics/Jolt_DataStructures.hpp"
 #include "Physics/Physics.hpp"
 #include "Renderer.hpp"
@@ -193,7 +194,7 @@ void DrawScriptComponentMenu(uint32_t selectedNode,
 
     DrawScriptField(selectedNode, node, l_scScript);
     ImGui::Separator();
-    if (ImGui::Button("Remove Component")) {
+    if (ImGui::Button("Remove Component ##script")) {
 
       Scene::PendingAction a;
       a.component = ComponentID::Script;
@@ -1465,7 +1466,7 @@ void DrawRigidBodyComponentMenu(uint32_t selectedNode,
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Remove Component")) {
+    if (ImGui::Button("Remove Component #Rigidbody")) {
 
       Scene::PendingAction a;
       a.component = ComponentID::Rigidbody;
@@ -1650,7 +1651,7 @@ void DrawModelComponentMenu(uint32_t selectedNode,
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Remove Component")) {
+    if (ImGui::Button("Remove Component ##model")) {
 
       Scene::PendingAction a;
       a.component = ComponentID::Model;
@@ -1796,7 +1797,7 @@ void DrawCameraComponentMenu(uint32_t selectedNode,
         static_cast<EProjectionType>(l_ui8CurrentProjection);
 
     ImGui::Separator();
-    if (ImGui::Button("Remove Component")) {
+    if (ImGui::Button("Remove Component ##camera")) {
 
       Scene::PendingAction a;
       a.component = ComponentID::Camera;
@@ -1808,6 +1809,108 @@ void DrawCameraComponentMenu(uint32_t selectedNode,
     }
   }
 }
+
+void DrawLightComponentMenu(uint32_t selectedNode,
+                            std::unique_ptr<GameObject> &node, Scene &scene) {
+
+  if (ImGui::CollapsingHeader("Light component")) {
+
+    auto &l_lcLightComponent = scene.GetComponent<LightComponent>(selectedNode);
+
+    const std::string l_strEnumNames[3]{"Point", "Spot", "Directional"};
+
+    uint8_t l_ui8CurrentProjection =
+        static_cast<uint8_t>(l_lcLightComponent.m_iType);
+    if (ImGui::BeginCombo(
+            "Light type",
+            l_strEnumNames[static_cast<uint8_t>(l_lcLightComponent.m_iType)]
+                .c_str())) {
+
+      for (uint8_t i = 0; i < 3; i++) {
+
+        bool l_bSelected = (l_ui8CurrentProjection == i);
+
+        if (ImGui::Selectable(l_strEnumNames[i].c_str(), l_bSelected)) {
+          l_ui8CurrentProjection = i;
+        }
+
+        if (l_bSelected) {
+
+          ImGui::SetItemDefaultFocus();
+        }
+      }
+
+      ImGui::EndCombo();
+    }
+    l_lcLightComponent.m_iType = static_cast<LightType>(l_ui8CurrentProjection);
+
+    switch (l_lcLightComponent.m_iType) {
+
+    case eHaz::LightType::Point: {
+
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+
+      ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange);
+
+    } break;
+
+    case eHaz::LightType::Spot: {
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+
+      ImGui::DragFloat3("Direction (world space)",
+                        &l_lcLightComponent.m_v3Direction.x);
+
+      if (ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange)) {
+
+        node->m_aabbVisibleBounds.extents =
+            glm::vec3(l_lcLightComponent.m_fRange);
+      }
+
+      ImGui::DragFloat("Inner cone angle", &l_lcLightComponent.m_v2Cone.x);
+
+      ImGui::DragFloat("Outer cone angle", &l_lcLightComponent.m_v2Cone.y);
+
+    } break;
+
+    case eHaz::LightType::Directional: {
+
+      ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
+      ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
+      ImGui::DragFloat3("Direction (world space)",
+                        &l_lcLightComponent.m_v3Direction.x);
+    } break;
+    }
+
+    if (eHaz_Core::Application::instance->EditorModeEnabled() &&
+        !eHaz_Core::Application::instance->IsSimulating()) {
+      if (l_lcLightComponent.m_iType != LightType::Directional)
+        Renderer::r_instance->p_debugDrawer->SubmitCube(
+            l_lcLightComponent.m_v3Position, glm::vec3(1.0f),
+            glm::vec4(l_lcLightComponent.m_v3Color, 1.0f));
+
+      if (l_lcLightComponent.m_iType == LightType::Spot ||
+          l_lcLightComponent.m_iType == LightType::Directional) {
+
+        Renderer::p_debugDrawer->SubmitSphere(l_lcLightComponent.m_v3Direction,
+                                              1.0f);
+      }
+    }
+
+    if (ImGui::Button("Remove Component ##light")) {
+
+      Scene::PendingAction a;
+      a.component = ComponentID::Light;
+      a.nodeID = selectedNode;
+      a.type = a.DeleteComponent;
+
+      scene.QueueAction(a);
+      ;
+    }
+  }
+}
+
 void EditorUILayer::DrawInspectWindow() {
   auto &scene = eHaz_Core::Application::instance->getActiveScene();
   auto &sceneGraph = scene.scene_graph;
@@ -1831,6 +1934,10 @@ void EditorUILayer::DrawInspectWindow() {
   if (node->HasComponentFlag(ComponentID::Script)) {
     DrawScriptComponentMenu(selectedNode, node, scene);
     ;
+  }
+  if (node->HasComponentFlag(ComponentID::Light)) {
+
+    DrawLightComponentMenu(selectedNode, node, scene);
   }
 
   // AlignForWidth(ImGui::GetWindowWidth());
@@ -1866,6 +1973,11 @@ void EditorUILayer::DrawInspectWindow() {
         case eHaz::ComponentID::Script: {
 
           CALL_ADD_FUNCTION(ScriptComponent);
+
+        } break;
+        case eHaz::ComponentID::Light: {
+
+          CALL_ADD_FUNCTION(LightComponent);
 
         } break;
         }
