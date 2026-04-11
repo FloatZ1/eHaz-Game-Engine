@@ -16,6 +16,7 @@ flat out uint MatID;
 struct VP {
     mat4 view;
     mat4 projection;
+    mat4 inverseViewProj;
 };
 
 layout(std430, binding = 5) readonly buffer ssbo5 {
@@ -43,8 +44,7 @@ layout(std430, binding = 7) readonly buffer ssbo7 {
 };
 
 // ============================ Joint Matrices ============================
-// Included ONLY because your source contains it
-// but **unused** because this is a non-animation shader.
+
 layout(std430, binding = 2) readonly buffer ssbo8 {
     mat4 jointMatrices[];
 };

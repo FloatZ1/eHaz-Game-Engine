@@ -17,15 +17,28 @@ layout(binding = 4) uniform sampler2D gDepth;
 struct VP {
     mat4 view;
     mat4 projection;
+    mat4 inverseViewProj;
+};
+
+struct SLight {
+    vec4 position_range;
+    vec4 color_intensity;
+    vec4 direction_type;
+    vec4 cone;
 };
 
 layout(std430, binding = 5) readonly buffer ssbo5 {
     VP camMats;
 };
 
+layout(std430, binding = 6) readonly buffer ssbo6 {
+    SLight g_Lights[];
+};
+
 in vec2 TexCoords;
 out vec4 FragColor;
 uniform vec3 camPos;
+uniform int numLights;
 
 #define PI 3.14159265359
 #define EPSILON 0.001
@@ -116,16 +129,11 @@ void main()
     vec3 worldPos = GetWorldPosition(TexCoords);
     vec3 V = normalize(camPos - worldPos);
 
-    vec3 lightPos = vec3(5.0, 20.0, 0.0);
-    vec3 L = normalize(lightPos - worldPos); // Light Vector (Surface to Light)
-    vec3 H = normalize(V + L);
-
     float dotNV = max(dot(N, V), 0.0);
-    float dotNL = max(dot(N, L), 0.0);
-    float dotNH = max(dot(N, H), 0.0);
-    float dotVH = max(dot(V, H), 0.0);
 
     vec3 albedo = texture(gAlbedo, TexCoords).rgb;
+    float fOpacity = texture(gAlbedo, TexCoords).a;
+
     vec3 emission = texture(gEmission, TexCoords).rgb;
     float roughness = texture(gPRM, TexCoords).g;
     float metallic = texture(gPRM, TexCoords).r;
@@ -133,19 +141,54 @@ void main()
     vec3 F0 = vec3(0.04);
     F0 = mix(F0, albedo, metallic);
 
-    float dist = length(lightPos - worldPos);
+    vec3 totalLighting = vec3(0.0);
 
-    // 2. Calculate attenuation (1 / d^2)
-    // Adding 1.0 to the denominator prevents division by zero if distance is 0
-    // The +1.0 ensures attenuation never exceeds 1.0 and avoids the "black hole"
-    float attenuation = 1.0 / (dist * dist + 1.0);
+    for (uint i = 0; i < numLights; i++) {
+        SLight light = g_Lights[i];
+        int type = int(light.direction_type.w);
 
-    // 3. Apply it to your final color
-    vec3 lightColor = vec3(1000.0); // Point lights need high intensity
-    vec3 radiance = lightColor * attenuation;
+        //vec3 L = normalize(lightPos - worldPos); // Light Vector (Surface to Light)
+        vec3 L = vec3(0.0);
+        float attenuation = 1.0;
+
+        if (type == 2) {
+            L = normalize(-light.direction_type.xyz);
+        }
+        else {
+            vec3 lightPos = light.position_range.xyz;
+
+            L = lightPos - worldPos;
+            float dist = length(L);
+            L = normalize(L);
+
+            float range = light.position_range.w;
+            attenuation = pow(clamp(1.0 - pow(dist / range, 4.0), 0.0, 1.0), 2.0) / (dist * dist + 1.0);
+
+            if (type == 1) {
+                float theta = dot(L, normalize(-light.direction_type.xyz));
+                float inner = light.cone.x;
+                float outer = light.cone.y;
+                float epsilon = inner - outer;
+                float spotIntensity = clamp((theta - outer) / epsilon, 0.0, 1.0);
+                attenuation *= spotIntensity;
+            }
+        }
+
+        vec3 H = normalize(V + L);
+
+        float dotNL = max(dot(N, L), 0.0);
+        float dotNH = max(dot(N, H), 0.0);
+        float dotVH = max(dot(V, H), 0.0);
+
+        vec3 radiance = light.color_intensity.xyz * light.color_intensity.w * attenuation;
+
+        totalLighting += BRDF_Cook_Torance(F0, dotNV, dotNL, dotNH, dotVH, albedo, roughness, metallic) * dotNL * radiance;
+    }
+
+    vec3 finalColor = totalLighting + (emission);
 
     // Basic HDR test output
-    vec3 hdrColor = BRDF_Cook_Torance(F0, dotNV, dotNL, dotNH, dotVH, albedo, roughness, metallic) * dotNL * radiance + (emission);
+    vec3 hdrColor = finalColor;
 
     //gamma correction
     // hdrColor = pow(hdrColor, vec3(1.0 / 2.2));

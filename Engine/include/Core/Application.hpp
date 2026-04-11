@@ -66,8 +66,13 @@ public:
   bool LoadSceneFromDisk(std::string p_strPath);
 
   bool GetDebugDrawingStatus() { return m_bDebugDrawing; }
+
+  bool GetDebugDrawingOctreeStatus() { return m_bDebugDrawOctree; }
   void SetDebugDrawingStatus(bool p_bStatus) { m_bDebugDrawing = p_bStatus; }
 
+  void SetDebugDrawingOctreeStatus(bool p_bStatus) {
+    m_bDebugDrawOctree = p_bStatus;
+  }
   bool EditorModeEnabled() { return m_bEditorMode; }
 
   void Run();
@@ -80,9 +85,13 @@ private:
 
   bool m_bDebugDrawing = false;
 
+  bool m_bDebugDrawOctree = false;
+
   bool m_bUseDefferedShading = false;
 
   void RenderFrame();
+
+  void SetSkyboxSettingsFromScene();
 
   AppSpec spec;
   eHazGraphics::Renderer renderer;

@@ -3,6 +3,7 @@
 
 #include "BitFlags.hpp"
 #include "Components.hpp"
+#include "Core/AssetSystem/Asset.hpp"
 #include "DataStructs.hpp"
 #include "GameObject.hpp"
 #include "Octree.hpp"
@@ -16,6 +17,7 @@
 #include "entt/meta/meta.hpp"
 #include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
+#include "glm/geometric.hpp"
 #include <SDL3/SDL_log.h>
 #include <execution>
 #include <functional>
@@ -36,6 +38,24 @@ public:
     ComponentID component;
   };
 
+  // skybox settings
+
+  glm::vec3 m_v3BetaRayleigh = glm::vec3(5.802f, 13.558f, 33.100f);
+  glm::vec3 m_v3BetaMie = glm::vec3(3.996f);
+  glm::vec3 m_v3BetaOzone = glm::vec3(0.650f, 1.881f, 0.085f);
+
+  float m_fLightExposure = 10.0f;
+  float m_fSolarBrightness = 10.0f;
+
+  glm::vec3 m_v3SunDirection = glm::normalize(glm::vec3(0.0f, 0.1f, -1.0f));
+
+  float m_fRayLeighScale = 0.08f;
+  float m_fMieScale = 0.012f;
+  float m_fSunScale = 0.1f;
+  glm::vec3 m_v3SunColor = glm::vec3(1.0f);
+
+  // scene settings;
+
   std::string m_strScenePath = "";
 
   std::string sceneName;
@@ -45,6 +65,25 @@ public:
   COctree m_otOctree;
 
   SceneGraph scene_graph;
+
+  std::string m_strDefaultSkyModelTop_Path =
+      eRESOURCES_PATH "Engine/Models/sunset_heights_skydome_top.glb";
+
+  std::string m_strDefaultSkyModelSide1_Path =
+      eRESOURCES_PATH "Engine/Models/sunset_heights_skydome_side1.glb";
+
+  std::string m_strDefaultSkyModelSide2_Path =
+      eRESOURCES_PATH "Engine/Models/sunset_heights_skydome_side2.glb";
+
+  float m_fSkyModelSize = 1.0f;
+
+  ModelHandle m_mhSkyModelTop;
+  ModelHandle m_mhSkyModelSide1;
+  ModelHandle m_mhSkyModelSide2;
+
+  MaterialHandle m_mathSkyModelTop;
+  MaterialHandle m_mathSkyModelSide1;
+  MaterialHandle m_mathSkyModelSide2;
 
   uint32_t m_uiActiveCameraObjectID = 0;
 
@@ -204,6 +243,10 @@ public:
 
   void OnCreate();
 
+  void SubmitVisibleLights(const SFrustum &p_fFrustum);
+
+  void VisualizeObjectVisibleBounds();
+
   void SubmitVisibleObjects(
       std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID,
                          TypeFlags)>
@@ -260,6 +303,21 @@ private:
     ar & sceneName;
     ar & m_strScenePath;
     ar & m_uiActiveCameraObjectID;
+
+    ar & m_v3BetaRayleigh;
+    ar & m_v3BetaMie;
+    ar & m_v3BetaOzone;
+
+    ar & m_fLightExposure;
+    ar & m_fSolarBrightness;
+
+    ar & m_v3SunDirection;
+
+    ar & m_fRayLeighScale;
+    ar & m_fMieScale;
+    ar & m_fSunScale;
+
+    ar & m_v3SunColor;
   }
 
   std::vector<PendingAction> pendingActions;

@@ -57,6 +57,7 @@ class EditorUILayer : public Layer {
   bool m_showDebugOptions = false;
   bool m_showMatSpecCreator = false;
   bool m_showRendererOptions = false;
+  bool m_showDebugRenderStats = false;
 
   std::vector<std::string> m_vAvailableFlags;
 

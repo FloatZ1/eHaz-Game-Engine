@@ -20,6 +20,7 @@ flat out uint MatID;
 struct VP {
     mat4 view;
     mat4 projection;
+    mat4 inverseViewProj;
 };
 layout(std430, binding = 5) readonly buffer ssbo5 {
     VP camMats;

@@ -17,8 +17,11 @@
 #include "entt/entity/fwd.hpp"
 #include "glm/common.hpp"
 
+#include <Lighting/Lighting_DataStructures.hpp>
+
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
+#include <cstdint>
 #include <fstream>
 #include <ios>
 #include <memory>
@@ -185,8 +188,7 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
     }
 
     // transform extents
-    glm::vec3 scaledExtents =
-        modelAABB.extents * glm::abs(transform->worldScale);
+    glm::vec3 scaledExtents = modelAABB.extents * transform->worldScale;
 
     glm::mat3 R = glm::mat3_cast(transform->worldRotation);
     glm::mat3 absR = glm::mat3(glm::abs(R[0]), glm::abs(R[1]), glm::abs(R[2]));
@@ -207,6 +209,17 @@ void Scene::UpdateWorldTransformsRecursive(GameObject &node) {
       node.m_bUbdateOctree = true;
 
     node.m_aabbVisibleBounds.extents = glm::vec3(0);
+  }
+
+  if (node.HasComponentFlag(ComponentID::Light)) {
+
+    auto &light = GetComponent<LightComponent>(node.index);
+
+    if (Vec3Different(light.m_v3Position, transform->worldPosition)) {
+      node.m_bUbdateOctree = true;
+    }
+
+    light.m_v3Position = transform->worldPosition;
   }
 
   // Recurse into children
@@ -245,13 +258,26 @@ void Scene::OnUpdate(float deltaTime) {
       auto &lc = GetComponent<LightComponent>(i);
       lc.m_v3Position = GetComponent<TransformComponent>(i).worldPosition;
 
+      if (lc.m_iType == LightType::Point || lc.m_iType == LightType::Spot) {
+        //  if (Vec3Different(nodes[i]->m_aabbVisibleBounds.center,
+        //                    lc.m_v3Position))
+        nodes[i]->m_aabbVisibleBounds.center = lc.m_v3Position;
+        nodes[i]->m_aabbVisibleBounds.extents = glm::vec3(lc.m_fRange);
+
+      } else {
+        nodes[i]->m_aabbVisibleBounds.center = glm::vec3(0.0f);
+        nodes[i]->m_aabbVisibleBounds.extents =
+            glm::vec3(MAX_OCTREE_BOUNDS_SIZE);
+      }
+
     } else {
       nodes[i]->m_bIsLight = false;
     }
 
     if (!nodes[i]->m_bUbdateOctree)
       continue;
-    if (!Vec3Different(nodes[i]->m_aabbVisibleBounds.extents, glm::vec3(0)))
+    if (!Vec3Different(nodes[i]->m_aabbVisibleBounds.extents, glm::vec3(0)) &&
+        !nodes[i]->m_bIsLight)
       continue;
 
     if (nodes[i]->m_uiOctreeIndex != INVALID_OCTREE_INDEX)
@@ -276,6 +302,87 @@ void Scene::OnFixedUpdate(float fixedDT) {
   }
 }
 
+void Scene::SubmitVisibleLights(const SFrustum &p_fFrustum) {
+
+  std::vector<uint32_t> l_vVisibleLights = m_otOctree.QueryLights(p_fFrustum);
+
+  std::vector<SGpuLight> l_vGPULights;
+
+  for (uint32_t &lightID : l_vVisibleLights) {
+
+    if (!scene_graph.nodes[lightID]->HasComponentFlag(ComponentID::Light))
+      continue;
+    auto &l_lcLightComponent = GetComponent<LightComponent>(lightID);
+    SGpuLight l_gpuLight;
+
+    l_gpuLight.color_intensity = {
+        l_lcLightComponent.m_v3Color.x, l_lcLightComponent.m_v3Color.y,
+        l_lcLightComponent.m_v3Color.z, l_lcLightComponent.m_fIntensity};
+
+    switch (l_lcLightComponent.m_iType) {
+
+    case LightType::Point: {
+      l_gpuLight.position_range = {
+          l_lcLightComponent.m_v3Position.x, l_lcLightComponent.m_v3Position.y,
+          l_lcLightComponent.m_v3Position.z, l_lcLightComponent.m_fRange
+
+      };
+
+      l_gpuLight.direction_type.w =
+          static_cast<float>((uint8_t)l_lcLightComponent.m_iType);
+
+    } break;
+
+    case LightType::Spot: {
+
+      l_gpuLight.position_range = {
+          l_lcLightComponent.m_v3Position.x, l_lcLightComponent.m_v3Position.y,
+          l_lcLightComponent.m_v3Position.z, l_lcLightComponent.m_fRange
+
+      };
+
+      l_gpuLight.cone = {l_lcLightComponent.m_v2Cone.x,
+                         l_lcLightComponent.m_v2Cone.y, 0.0f, 0.0f};
+
+      l_gpuLight.direction_type = {
+          l_lcLightComponent.m_v3Direction,
+          static_cast<float>((uint8_t)l_lcLightComponent.m_iType)};
+
+    } break;
+
+    case LightType::Directional: {
+
+      l_gpuLight.direction_type = {
+          l_lcLightComponent.m_v3Direction,
+          static_cast<float>((uint8_t)l_lcLightComponent.m_iType)};
+
+    } break;
+    }
+
+    l_vGPULights.push_back(l_gpuLight);
+  }
+
+  if (l_vGPULights.size() != 0) {
+
+    Renderer::r_instance->SetVisisbleLightCount(l_vGPULights.size());
+    Renderer::r_instance->SubmitDynamicData(
+        l_vGPULights.data(), l_vGPULights.size() * sizeof(SGpuLight),
+        TypeFlags::BUFFER_LIGHT_DATA);
+
+  } else {
+    Renderer::r_instance->SetVisisbleLightCount(0);
+  }
+}
+void Scene::VisualizeObjectVisibleBounds() {
+
+  for (auto &node : scene_graph.nodes) {
+    if (!node)
+      continue;
+    Renderer::p_debugDrawer->SubmitCube(node->m_aabbVisibleBounds.center,
+                                        node->m_aabbVisibleBounds.extents,
+                                        glm::vec4(1.0f, 0.0f, 0.1f, 0.4f));
+  }
+}
 void Scene::SubmitVisibleObjects(
     std::function<void(ModelID, glm::mat4, uint32_t, ShaderComboID, TypeFlags)>
         p_fStaticSubmitFunction,
@@ -341,13 +448,42 @@ void Scene::SubmitVisibleObjects(
 }
 
 void Scene::SaveSceneToDisk(std::string p_strExportPath) {
+
   std::ofstream file(p_strExportPath);
   boost::archive::text_oarchive ar(file);
+
+  uint32_t version = 1;
+
+  ar & version;
 
   ar & sceneName;
   ar & scene_graph;
   ar & m_strScenePath;
   ar & m_uiActiveCameraObjectID;
+
+  ar & m_strDefaultSkyModelTop_Path;
+  ar & m_strDefaultSkyModelSide1_Path;
+  ar & m_strDefaultSkyModelSide2_Path;
+
+  ar & m_fSkyModelSize;
+  ar & m_mhSkyModelSide1;
+  ar & m_mhSkyModelSide2;
+  ar & m_mhSkyModelTop;
+
+  ar & m_v3BetaRayleigh;
+  ar & m_v3BetaMie;
+  ar & m_v3BetaOzone;
+
+  ar & m_fLightExposure;
+  ar & m_fSolarBrightness;
+
+  ar & m_v3SunDirection;
+
+  ar & m_fRayLeighScale;
+  ar & m_fMieScale;
+  ar & m_fSunScale;
+
+  ar & m_v3SunColor;
 
   CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
   ar & loadedAssets;
@@ -368,7 +504,9 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
       .component<ModelComponent>(adapter)
       .component<CameraComponent>(adapter)
       .component<RigidBodyComponent>(adapter)
-      .component<ScriptComponent>(adapter);
+      .component<ScriptComponent>(adapter)
+      .component<LightComponent>(adapter)
+      .component<AnimatorComponent>(adapter);
 }
 
 bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
@@ -388,11 +526,39 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     PhysicsEngine::s_Instance->ProcessQueues(*this);
     boost::archive::text_iarchive ar(file);
 
+    uint32_t version = 0;
+
+    ar & version;
+
     ar & sceneName;
     ar & scene_graph;
     ar & m_strScenePath;
     ar & m_uiActiveCameraObjectID;
 
+    ar & m_strDefaultSkyModelTop_Path;
+    ar & m_strDefaultSkyModelSide1_Path;
+    ar & m_strDefaultSkyModelSide2_Path;
+
+    ar & m_fSkyModelSize;
+    ar & m_mhSkyModelSide1;
+    ar & m_mhSkyModelSide2;
+    ar & m_mhSkyModelTop;
+    if (version > 0) {
+      ar & m_v3BetaRayleigh;
+      ar & m_v3BetaMie;
+      ar & m_v3BetaOzone;
+
+      ar & m_fLightExposure;
+      ar & m_fSolarBrightness;
+
+      ar & m_v3SunDirection;
+
+      ar & m_fRayLeighScale;
+      ar & m_fMieScale;
+      ar & m_fSunScale;
+
+      ar & m_v3SunColor;
+    }
     CAssetSystem loadedAssets(true);
     ar & loadedAssets;
     // ar & m_uiActiveCameraObjectID;
@@ -410,7 +576,9 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
         .component<ModelComponent>(adapter)
         .component<CameraComponent>(adapter)
         .component<RigidBodyComponent>(adapter)
-        .component<ScriptComponent>(adapter);
+        .component<ScriptComponent>(adapter)
+        .component<LightComponent>(adapter)
+        .component<AnimatorComponent>(adapter);
 
     auto view = m_registry.view<RigidBodyComponent>();
 
@@ -439,6 +607,7 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     }
 
     PhysicsEngine::s_Instance->ProcessQueues(*this);
+
     return true;
   } catch (std::exception &e) {
     std::cout << e.what() << std::endl;

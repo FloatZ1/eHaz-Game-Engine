@@ -6,7 +6,7 @@ layout(binding = 0) uniform sampler2D u_HDRColor;
 in vec2 TexCoords;
 out vec4 FragColor;
 
-uniform float exposure = 1.0;
+uniform float exposure = 0.0009;
 
 void main()
 {

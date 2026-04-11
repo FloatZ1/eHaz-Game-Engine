@@ -230,7 +230,8 @@ void EditorUILayer::DrawFolderBrowser() {
       };
 
       if (ImGui::MenuItem("Load as Texture") &&
-          (extension == ".png" || extension == ".jpg")) {
+          (extension == ".png" || extension == ".jpg" || extension == ".hdr" ||
+           extension == ".exr")) {
 
         CAssetSystem::m_pInstance->LoadTexture(path);
       };

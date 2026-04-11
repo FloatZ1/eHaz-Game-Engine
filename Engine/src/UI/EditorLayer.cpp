@@ -23,6 +23,7 @@
 #include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
 #include "glm/gtc/type_ptr.hpp"
+#include "glm/trigonometric.hpp"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include <SDL3/SDL_log.h>
@@ -572,7 +573,8 @@ void EditorUILayer::ShaderSpecCreationWindow(bool *open) {
   ImGui::End();
 }
 
-void SceneOptionsMenu(bool *open) {
+void SceneOptionsMenu(bool *open, uint32_t selectedNode,
+                      std::unique_ptr<GameObject> &node, Scene &scene) {
   if (!*open)
     return;
 
@@ -584,6 +586,376 @@ void SceneOptionsMenu(bool *open) {
 
     // --- Content Area ---
     ImGui::InputText("Scene Name", &currentScene.sceneName);
+
+    ImGui::Separator();
+
+    ImGui::Text("Atmosphere Settings");
+
+    // Rayleigh, Mie, and Ozone Beta Vectors
+    ImGui::ColorEdit3("Beta Rayleigh", &currentScene.m_v3BetaRayleigh.x, 0.01f);
+    ImGui::ColorEdit3("Beta Mie", &currentScene.m_v3BetaMie.x, 0.01f);
+    ImGui::ColorEdit3("Beta Ozone", &currentScene.m_v3BetaOzone.x, 0.01f);
+
+    ImGui::Separator();
+
+    // Exposure and Brightness
+    ImGui::DragFloat("Light Exposure", &currentScene.m_fLightExposure, 0.1f,
+                     0.0f);
+    ImGui::DragFloat("Solar Brightness", &currentScene.m_fSolarBrightness, 0.1f,
+                     0.0f);
+
+    ImGui::Separator();
+
+    // Sun Direction (Normalized after edit)
+    if (ImGui::DragFloat3("Sun Direction", &currentScene.m_v3SunDirection.x,
+                          0.01f, -1.0f, 1.0f)) {
+      currentScene.m_v3SunDirection =
+          glm::normalize(currentScene.m_v3SunDirection);
+    }
+    ImGui::DragFloat("Sun size", &currentScene.m_fSunScale, 0.01f);
+    ImGui::ColorEdit3("Sun color", &currentScene.m_v3SunColor.x);
+
+    // Scale Multipliers
+    ImGui::DragFloat("Rayleigh Scale", &currentScene.m_fRayLeighScale, 0.001f,
+                     0.0f);
+    ImGui::DragFloat("Mie Scale", &currentScene.m_fMieScale, 0.001f, 0.0f);
+
+    auto &l_asAssetSystem = eHaz_Core::Application::instance->GetAssetSystem();
+
+    auto &l_vMaterials = l_asAssetSystem.GetAllMaterials();
+
+    auto &l_vModels = l_asAssetSystem.GetAllModels();
+
+    MaterialHandle l_mathSelectedHandleTop = scene.m_mathSkyModelTop;
+
+    MaterialHandle l_mathSelectedHandleSide1 = scene.m_mathSkyModelSide1;
+    MaterialHandle l_mathSelectedHandleSide2 = scene.m_mathSkyModelSide2;
+
+    ModelHandle l_mhSelectedHandle = scene.m_mhSkyModelTop;
+
+    ModelHandle l_mhSelectedHandle1 = scene.m_mhSkyModelSide1;
+
+    ModelHandle l_mhSelectedHandle2 = scene.m_mhSkyModelSide2;
+
+    {
+      if (ImGui::Button("Select Sky model top")) {
+        ImGui::OpenPopup("ModelSelectionPopupS_TOP");
+      }
+
+      // The popup itself
+      if (ImGui::BeginPopup("ModelSelectionPopupS_TOP")) {
+
+        for (size_t i = 0; i < l_vModels.size(); ++i) {
+          auto &l_asModel = l_vModels[i];
+          if (!l_asModel.alive)
+            continue;
+
+          bool isSelected =
+              (l_mhSelectedHandle.index == i &&
+               l_mhSelectedHandle.generation == l_asModel.generation);
+
+          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
+                                    .filename()
+                                    .c_str(),
+                                isSelected)) {
+            l_mhSelectedHandle.index = i;
+            l_mhSelectedHandle.generation = l_asModel.generation;
+
+            // Update the component with the selected handle
+            scene.m_mhSkyModelTop = l_mhSelectedHandle;
+            //  node->m_bUbdateOctree = true;
+            // Close popup immediately after selection
+            ImGui::CloseCurrentPopup();
+          }
+
+          if (isSelected)
+            ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndPopup();
+      }
+
+      // Show currently selected model
+      if (l_asAssetSystem.isValidModel(l_mhSelectedHandle)) {
+        ImGui::Text("Current: %s",
+                    std::filesystem::path(
+                        l_asAssetSystem.GetModel(l_mhSelectedHandle)->m_strPath)
+                        .filename()
+                        .c_str());
+      } else {
+        ImGui::Text("Current: None");
+      }
+    }
+
+    {
+      if (ImGui::Button("Select Sky model side1")) {
+        ImGui::OpenPopup("ModelSelectionPopupS_SIDE1");
+      }
+
+      // The popup itself
+      if (ImGui::BeginPopup("ModelSelectionPopupS_SIDE1")) {
+
+        for (size_t i = 0; i < l_vModels.size(); ++i) {
+          auto &l_asModel = l_vModels[i];
+          if (!l_asModel.alive)
+            continue;
+
+          bool isSelected =
+              (l_mhSelectedHandle1.index == i &&
+               l_mhSelectedHandle1.generation == l_asModel.generation);
+
+          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
+                                    .filename()
+                                    .c_str(),
+                                isSelected)) {
+            l_mhSelectedHandle1.index = i;
+            l_mhSelectedHandle1.generation = l_asModel.generation;
+
+            // Update the component with the selected handle
+            scene.m_mhSkyModelSide1 = l_mhSelectedHandle1;
+            //  node->m_bUbdateOctree = true;
+            // Close popup immediately after selection
+            ImGui::CloseCurrentPopup();
+          }
+
+          if (isSelected)
+            ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndPopup();
+      }
+
+      // Show currently selected model
+      if (l_asAssetSystem.isValidModel(l_mhSelectedHandle1)) {
+        ImGui::Text(
+            "Current: %s",
+            std::filesystem::path(
+                l_asAssetSystem.GetModel(l_mhSelectedHandle1)->m_strPath)
+                .filename()
+                .c_str());
+      } else {
+        ImGui::Text("Current: None");
+      }
+    }
+
+    {
+      if (ImGui::Button("Select Sky model side2")) {
+        ImGui::OpenPopup("ModelSelectionPopupS_SIDE2");
+      }
+
+      // The popup itself
+      if (ImGui::BeginPopup("ModelSelectionPopupS_SIDE2")) {
+
+        for (size_t i = 0; i < l_vModels.size(); ++i) {
+          auto &l_asModel = l_vModels[i];
+          if (!l_asModel.alive)
+            continue;
+
+          bool isSelected =
+              (l_mhSelectedHandle2.index == i &&
+               l_mhSelectedHandle2.generation == l_asModel.generation);
+
+          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
+                                    .filename()
+                                    .c_str(),
+                                isSelected)) {
+            l_mhSelectedHandle2.index = i;
+            l_mhSelectedHandle2.generation = l_asModel.generation;
+
+            // Update the component with the selected handle
+            scene.m_mhSkyModelSide2 = l_mhSelectedHandle2;
+            //  node->m_bUbdateOctree = true;
+            // Close popup immediately after selection
+            ImGui::CloseCurrentPopup();
+          }
+
+          if (isSelected)
+            ImGui::SetItemDefaultFocus();
+        }
+
+        ImGui::EndPopup();
+      }
+
+      // Show currently selected model
+      if (l_asAssetSystem.isValidModel(l_mhSelectedHandle2)) {
+        ImGui::Text(
+            "Current: %s",
+            std::filesystem::path(
+                l_asAssetSystem.GetModel(l_mhSelectedHandle2)->m_strPath)
+                .filename()
+                .c_str());
+      } else {
+        ImGui::Text("Current: None");
+      }
+    }
+
+    // ==================Materials=======================
+    //
+    //
+    //
+    //
+    //
+
+    static bool updateSkyboxMaterials = false;
+
+    ImGui::Separator();
+    if (ImGui::Button("Select Material: Top")) {
+      ImGui::OpenPopup("SkyboxMaterialPopup");
+    }
+    if (ImGui::BeginPopup("SkyboxMaterialPopup")) {
+
+      for (size_t i = 0; i < l_vMaterials.size(); ++i) {
+        auto &l_asMaterial = l_vMaterials[i];
+
+        if (!l_asMaterial.alive)
+          continue;
+
+        bool isSelected =
+            (l_mathSelectedHandleTop.index == i &&
+             l_mathSelectedHandleTop.generation == l_asMaterial.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asMaterial.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+          l_mathSelectedHandleTop.index = i;
+          l_mathSelectedHandleTop.generation = l_asMaterial.generation;
+
+          scene.m_mathSkyModelTop = l_mathSelectedHandleTop;
+          updateSkyboxMaterials = true;
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandleTop)) {
+      ImGui::Text(
+          "Current material: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetMaterial(l_mathSelectedHandleTop)->m_strPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current top material: None");
+    }
+
+    if (ImGui::Button("Select Material: Side 1")) {
+      ImGui::OpenPopup("SkyboxMaterialPopup1");
+    }
+    if (ImGui::BeginPopup("SkyboxMaterialPopup1")) {
+
+      for (size_t i = 0; i < l_vMaterials.size(); ++i) {
+        auto &l_asMaterial = l_vMaterials[i];
+
+        if (!l_asMaterial.alive)
+          continue;
+
+        bool isSelected =
+            (l_mathSelectedHandleSide1.index == i &&
+             l_mathSelectedHandleSide1.generation == l_asMaterial.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asMaterial.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+          l_mathSelectedHandleSide1.index = i;
+          l_mathSelectedHandleSide1.generation = l_asMaterial.generation;
+
+          scene.m_mathSkyModelSide1 = l_mathSelectedHandleSide1;
+
+          updateSkyboxMaterials = true;
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandleSide1)) {
+      ImGui::Text(
+          "Current material: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetMaterial(l_mathSelectedHandleSide1)->m_strPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current side 1 material: None");
+    }
+
+    if (ImGui::Button("Select Material: Side 2")) {
+      ImGui::OpenPopup("SkyboxMaterialPopup2");
+    }
+    if (ImGui::BeginPopup("SkyboxMaterialPopup2")) {
+
+      for (size_t i = 0; i < l_vMaterials.size(); ++i) {
+        auto &l_asMaterial = l_vMaterials[i];
+
+        if (!l_asMaterial.alive)
+          continue;
+
+        bool isSelected =
+            (l_mathSelectedHandleSide2.index == i &&
+             l_mathSelectedHandleSide2.generation == l_asMaterial.generation);
+
+        if (ImGui::Selectable(
+                std::filesystem::path(l_asMaterial.asset.m_strPath)
+                    .filename()
+                    .c_str(),
+                isSelected)) {
+          l_mathSelectedHandleSide2.index = i;
+          l_mathSelectedHandleSide2.generation = l_asMaterial.generation;
+
+          scene.m_mathSkyModelSide2 = l_mathSelectedHandleSide2;
+
+          updateSkyboxMaterials = true;
+          ImGui::CloseCurrentPopup();
+        }
+        if (isSelected)
+          ImGui::SetItemDefaultFocus();
+      }
+      ImGui::EndPopup();
+    }
+    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandleSide2)) {
+      ImGui::Text(
+          "Current material: %s",
+          std::filesystem::path(
+              l_asAssetSystem.GetMaterial(l_mathSelectedHandleSide2)->m_strPath)
+              .filename()
+              .c_str());
+    } else {
+      ImGui::Text("Current side 2 material: None");
+    }
+
+    if (ImGui::DragFloat("Sky Model Size", &scene.m_fSkyModelSize, 0.1f)) {
+
+      updateSkyboxMaterials = true;
+    }
+
+    if (updateSkyboxMaterials) {
+      auto &asset_system = eHaz_Core::Application::instance->GetAssetSystem();
+
+      auto *skyTop = asset_system.GetMaterial(scene.m_mathSkyModelTop);
+      auto *skySide1 = asset_system.GetMaterial(scene.m_mathSkyModelSide1);
+      auto *skySide2 = asset_system.GetMaterial(scene.m_mathSkyModelSide2);
+
+      if (skyTop)
+        Renderer::r_instance->SetSkyModelTop_Material(skyTop->m_uiMaterialID);
+
+      if (skySide1) {
+        Renderer::r_instance->SetSkyModelSide1_Material(
+            skySide1->m_uiMaterialID);
+      }
+
+      if (skySide2)
+        Renderer::r_instance->SetSkyModelSide2_Material(
+            skySide2->m_uiMaterialID);
+
+      Renderer::r_instance->SetSkyModelScale(scene.m_fSkyModelSize);
+    }
 
     // --- Bottom Right Button Logic ---
     // 1. Calculate how much space the button needs
@@ -624,9 +996,37 @@ void DebugOptionsWindow(bool *open) {
 
     ImGui::Checkbox("Draw Object Shapes", &p_dsSetting.mDrawShape);
     ImGui::Checkbox("Draw Object Velocities", &p_dsSetting.mDrawVelocity);
+
+    ImGui::Separator();
+
+    static bool s_bDrawDebugOctree =
+        eHaz_Core::Application::instance->GetDebugDrawingOctreeStatus();
+
+    if (ImGui::Checkbox("Octree debug", &s_bDrawDebugOctree)) {
+
+      eHaz_Core::Application::instance->SetDebugDrawingOctreeStatus(
+          s_bDrawDebugOctree);
+    }
+
     if (ImGui::Button("Close", ImVec2(80.0f, 0))) {
       *open = false;
     }
+    ImGui::End();
+  }
+}
+
+void DrawDebugStatsWindow(bool *open) {
+  if (!*open)
+    return;
+
+  if (ImGui::Begin("Renderer Debug Stats")) {
+
+    std::string numLights =
+        "Number of submitted lights: " +
+        std::to_string(Renderer::r_instance->GetVisibleLightCount()) + "\n";
+
+    ImGui::Text(numLights.c_str());
+
     ImGui::End();
   }
 }
@@ -700,6 +1100,9 @@ void EditorUILayer::DrawMenuBar() {
       if (ImGui::MenuItem("Renderer options")) {
         m_showRendererOptions = true;
       }
+      if (ImGui::MenuItem("Show Debug Stats")) {
+        m_showDebugRenderStats = true;
+      }
 
       ImGui::EndMenu();
     }
@@ -769,7 +1172,7 @@ void EditorUILayer::OnCreate() {
   colors[ImGuiCol_CheckMark] = ImVec4(0.59f, 0.54f, 0.18f, 1.00f);
   colors[ImGuiCol_SliderGrab] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
   colors[ImGuiCol_SliderGrabActive] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
-  colors[ImGuiCol_Button] = ImVec4(0.29f, 0.34f, 0.26f, 0.40f);
+  colors[ImGuiCol_Button] = ImVec4(0.69f, 0.64f, 0.26f, 1.00f);
   colors[ImGuiCol_ButtonHovered] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
   colors[ImGuiCol_ButtonActive] = ImVec4(0.54f, 0.57f, 0.51f, 0.50f);
   colors[ImGuiCol_Header] = ImVec4(0.35f, 0.42f, 0.31f, 1.00f);
@@ -906,7 +1309,10 @@ void EditorUILayer::OnRender() {
     ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), dockspaceFlags);
 
     DrawMenuBar();
-    SceneOptionsMenu(&m_ShowSceneOptions);
+    SceneOptionsMenu(&m_ShowSceneOptions, selectedNode,
+                     eHaz_Core::Application::instance->getActiveScene()
+                         .scene_graph.nodes[selectedNode],
+                     eHaz_Core::Application::instance->getActiveScene());
     ShaderSpecCreationWindow(&m_showShaderSpecWindow);
     ImGui::End();
   }
@@ -916,6 +1322,7 @@ void EditorUILayer::OnRender() {
   DrawSceneHierarchy();
   DebugOptionsWindow(&m_showDebugOptions);
   MaterialSpecCreationWindow(&m_showMatSpecCreator);
+  DrawDebugStatsWindow(&m_showDebugRenderStats);
   RendererOptionsWindow(&m_showRendererOptions);
   DrawInspectWindow();
   DrawContentBrowser();
@@ -1851,8 +2258,11 @@ void DrawLightComponentMenu(uint32_t selectedNode,
       ImGui::ColorEdit3("Light color", &l_lcLightComponent.m_v3Color.x);
       ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
 
-      ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange);
+      if (ImGui::DragFloat("Range", &l_lcLightComponent.m_fRange)) {
 
+        node->m_aabbVisibleBounds.extents =
+            glm::vec3(l_lcLightComponent.m_fRange);
+      }
     } break;
 
     case eHaz::LightType::Spot: {
@@ -1868,9 +2278,18 @@ void DrawLightComponentMenu(uint32_t selectedNode,
             glm::vec3(l_lcLightComponent.m_fRange);
       }
 
-      ImGui::DragFloat("Inner cone angle", &l_lcLightComponent.m_v2Cone.x);
+      float degConeX = glm::degrees(l_lcLightComponent.m_v2Cone.x);
+      float degConeY = glm::degrees(l_lcLightComponent.m_v2Cone.y);
 
-      ImGui::DragFloat("Outer cone angle", &l_lcLightComponent.m_v2Cone.y);
+      if (ImGui::DragFloat("Inner cone angle", &degConeX)) {
+
+        l_lcLightComponent.m_v2Cone.x = glm::radians(degConeX);
+      }
+
+      if (ImGui::DragFloat("Outer cone angle", &degConeY)) {
+
+        l_lcLightComponent.m_v2Cone.y = glm::radians(degConeY);
+      }
 
     } break;
 
@@ -1880,6 +2299,9 @@ void DrawLightComponentMenu(uint32_t selectedNode,
       ImGui::DragFloat("Intensity", &l_lcLightComponent.m_fIntensity);
       ImGui::DragFloat3("Direction (world space)",
                         &l_lcLightComponent.m_v3Direction.x);
+
+      node->m_aabbVisibleBounds.extents = glm::vec3(MAX_OCTREE_BOUNDS_SIZE);
+
     } break;
     }
 
@@ -1978,7 +2400,7 @@ void EditorUILayer::DrawInspectWindow() {
         case eHaz::ComponentID::Light: {
 
           CALL_ADD_FUNCTION(LightComponent);
-
+          node->m_bUbdateOctree = true;
         } break;
         }
 

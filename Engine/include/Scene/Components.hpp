@@ -92,6 +92,30 @@ struct AnimatorComponent {
   int animatorID;
   bool isPaused = true;
   bool isLooping = true;
+
+  float m_fBlendFactorX = 0.0f;
+  float m_fBlendFactorY = 0.0f;
+
+  // animation ids for this animator
+  std::vector<eHazGraphics::AnimationID> m_vAnimations;
+  // x and y blend factors for each animation in the m_vAnimations vector
+  std::vector<std::pair<float, float>> m_vAnimationBlendFactors;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & animatorID;
+    ar & isPaused;
+    ar & isLooping;
+
+    ar & m_fBlendFactorX;
+    ar & m_fBlendFactorY;
+
+    ar & m_vAnimations;
+    ar & m_vAnimationBlendFactors;
+  }
 };
 
 struct ModelComponent {

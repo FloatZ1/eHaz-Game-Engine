@@ -56,7 +56,7 @@ void COctree::QueryNodeLights(uint32_t p_uiNodeID, const SFrustum &p_fFrustum,
     if (l_onCurrentNode.m_uiChildren[i] == INVALID_OCTREE_INDEX)
       continue;
 
-    QueryNode(l_onCurrentNode.m_uiChildren[i], p_fFrustum, p_vOut);
+    QueryNodeLights(l_onCurrentNode.m_uiChildren[i], p_fFrustum, p_vOut);
   }
 }
 std::vector<uint32_t> COctree::QueryLights(const SFrustum &p_Frustum) {
@@ -125,17 +125,24 @@ void COctree::Insert(GameObject &p_goObject) {
   }
 
   p_goObject.m_uiOctreeIndex = l_iCurrentNode;
-  m_onNodes[l_iCurrentNode].m_vSceneObjectIds.push_back(p_goObject.index);
+  if (!p_goObject.m_bIsLight)
+    m_onNodes[l_iCurrentNode].m_vSceneObjectIds.push_back(p_goObject.index);
+  else
+    m_onNodes[l_iCurrentNode].m_vSceneLightIds.push_back(p_goObject.index);
 }
 void COctree::Remove(GameObject &p_goObject) {
   if (p_goObject.m_uiOctreeIndex == INVALID_OCTREE_INDEX)
     return;
   SOctNode &l_onContainingNode = m_onNodes[p_goObject.m_uiOctreeIndex];
-
   l_onContainingNode.m_vSceneObjectIds.erase(
       std::remove(l_onContainingNode.m_vSceneObjectIds.begin(),
                   l_onContainingNode.m_vSceneObjectIds.end(), p_goObject.index),
       l_onContainingNode.m_vSceneObjectIds.end());
+
+  l_onContainingNode.m_vSceneLightIds.erase(
+      std::remove(l_onContainingNode.m_vSceneLightIds.begin(),
+                  l_onContainingNode.m_vSceneLightIds.end(), p_goObject.index),
+      l_onContainingNode.m_vSceneLightIds.end());
 
   p_goObject.m_uiOctreeIndex = INVALID_OCTREE_INDEX;
 }
