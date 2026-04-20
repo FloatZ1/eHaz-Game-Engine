@@ -16,13 +16,19 @@
 #include "entt/entity/entity.hpp"
 #include "entt/entity/fwd.hpp"
 #include "glm/common.hpp"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/geometric.hpp"
+#include "imgui.h"
+#include "sol/sol.hpp"
 
 #include <Lighting/Lighting_DataStructures.hpp>
 
+#include <array>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 #include <cstdint>
 #include <fstream>
+#include <future>
 #include <ios>
 #include <memory>
 #include <vector>
@@ -286,6 +292,49 @@ void Scene::OnUpdate(float deltaTime) {
     m_otOctree.Insert(*nodes[i]);
     nodes[i]->m_bUbdateOctree = false;
   }
+
+  if (eHaz_Core::Application::instance->IsSimulating()) {
+
+    Renderer::r_instance->aspect = GetActiveCameraAspect();
+    Renderer::r_instance->fov = GetActiveCameraFov();
+
+    auto camera = GetComponent<CameraComponent>(m_uiActiveCameraObjectID);
+
+    Renderer::r_instance->SetCameraPlanes(camera.m_fNearPlane,
+                                          camera.m_fFarPlane);
+  }
+
+  glm::vec2 camPlanes = Renderer::r_instance->GetNearFarPlanes();
+
+  float farPlane = camPlanes.y;
+  float nearPlane = camPlanes.x;
+
+  std::vector<float> cascadeLevels;
+  int cascadeCount = 4;
+
+  float lambda = 0.7f; // tweak 0.5–0.9
+
+  for (int i = 1; i < cascadeCount; i++) {
+    float p = (float)i / cascadeCount;
+
+    float log = nearPlane * std::pow(farPlane / nearPlane, p);
+    float lin = nearPlane + (farPlane - nearPlane) * p;
+
+    float split = glm::mix(lin, log, lambda);
+    cascadeLevels.push_back(split);
+  }
+
+  /* m_csmShadowMaps.Update(
+       Renderer::r_instance->GetViewMatrix(), Renderer::r_instance->fov,
+       Renderer::r_instance->aspect, glm::normalize(-m_v3SunDirection),
+       cascadeLevels, Renderer::r_instance->GetProjection(), camPlanes.x,
+       camPlanes.y); */
+
+  /* m_csmShadowMaps.Update(Renderer::r_instance->GetViewMatrix(),
+                          Renderer::r_instance->GetProjection(),
+                          Renderer::r_instance->cameraPosition,
+     m_v3SunDirection, Renderer::r_instance->fov,
+                          Renderer::r_instance->aspect);*/
 }
 
 void Scene::OnFixedUpdate(float fixedDT) {
@@ -390,10 +439,71 @@ void Scene::SubmitVisibleObjects(
         p_fAnimatedSubmitFunction,
     const SFrustum &p_fFrustum) {
 
-  std::vector<uint32_t> l_vVisibleModels =
-      m_otOctree.QueryRenderables(p_fFrustum);
+  static SFrustum s_fSunFrustum;
+
+  s_fSunFrustum =
+      s_fSunFrustum.ExtractFrustum(m_csmShadowMaps.lightMatrices[3]);
+
+  auto cameraFuture = std::async(std::launch::async, &COctree::QueryRenderables,
+                                 m_otOctree, p_fFrustum);
+  auto csmFuture = std::async(std::launch::async, &COctree::QueryRenderables,
+                              m_otOctree, s_fSunFrustum);
+
+  std::vector<uint32_t> l_vVisibleModels = cameraFuture.get();
+  std::vector<uint32_t> l_vVisibleSunModels = csmFuture.get();
+
   if (l_vVisibleModels.size() == 0)
     return;
+
+  for (uint32_t &objectID : l_vVisibleSunModels) {
+
+    std::unique_ptr<GameObject> &l_pObject = scene_graph.nodes[objectID];
+    if (!l_pObject->isVisible)
+      continue;
+    const ModelComponent *l_mcModelComponent =
+        TryGetComponent<ModelComponent>(objectID);
+    if (!l_mcModelComponent)
+      continue;
+    const TransformComponent *l_tcTransformComponent =
+        TryGetComponent<TransformComponent>(objectID);
+
+    const SModelAsset *l_maModelAsset =
+        CAssetSystem::m_pInstance->GetModel(l_mcModelComponent->m_Handle);
+    if (!l_maModelAsset)
+      continue;
+
+    switch (l_maModelAsset->m_bAnimated) {
+
+    case true:
+      p_fAnimatedSubmitFunction(l_maModelAsset->m_modelID,
+                                MakeTRS(l_tcTransformComponent->worldPosition,
+                                        l_tcTransformComponent->worldRotation,
+                                        l_tcTransformComponent->worldScale),
+                                0, Renderer::r_instance->GetCSM_shader());
+      break;
+
+    case false:
+
+      p_fStaticSubmitFunction(l_maModelAsset->m_modelID,
+                              MakeTRS(l_tcTransformComponent->worldPosition,
+                                      l_tcTransformComponent->worldRotation,
+                                      l_tcTransformComponent->worldScale),
+                              0, Renderer::r_instance->GetCSM_shader(),
+                              TypeFlags::BUFFER_STATIC_MESH_DATA);
+      break;
+    }
+  }
+
+  auto shadowRanges = Renderer::p_renderQueue->SubmitRenderCommands();
+
+  auto &lightMats = m_csmShadowMaps.Update(
+      Renderer::r_instance->GetViewMatrix(), Renderer::r_instance->fov,
+      Renderer::r_instance->aspect, (-m_v3SunDirection));
+
+  glm::mat4 arr[4] = {lightMats[0], lightMats[1], lightMats[2], lightMats[3]};
+
+  Renderer::r_instance->RenderShadowMapTextures(shadowRanges, arr);
+
   for (uint32_t &objectID : l_vVisibleModels) {
 
     std::unique_ptr<GameObject> &l_pObject = scene_graph.nodes[objectID];

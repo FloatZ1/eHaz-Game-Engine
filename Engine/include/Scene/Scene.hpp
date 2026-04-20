@@ -18,6 +18,7 @@
 #include "entt/meta/resolve.hpp"
 #include "glm/fwd.hpp"
 #include "glm/geometric.hpp"
+#include <CSM.hpp>
 #include <SDL3/SDL_log.h>
 #include <execution>
 #include <functional>
@@ -37,6 +38,8 @@ public:
 
     ComponentID component;
   };
+
+  CSM m_csmShadowMaps;
 
   // skybox settings
 
@@ -103,6 +106,33 @@ public:
     }
     return GetComponent<TransformComponent>(m_uiActiveCameraObjectID)
         .worldPosition;
+  }
+
+  float GetActiveCameraAspect() {
+
+    const CameraComponent &cam =
+        GetComponent<CameraComponent>(m_uiActiveCameraObjectID);
+
+    // Match editor camera: aspect ratio = window width / height
+    float aspect =
+        Renderer::p_window->GetWidth() / (float)Renderer::p_window->GetHeight();
+    if (cam.m_bUseCustomAspectRatio) {
+      aspect = cam.m_iAspectRatio1 / (float)cam.m_iAspectRatio2;
+    }
+
+    // Use FOV like editor camera
+    float fovRadians = glm::radians(cam.m_fFOV);
+
+    // Perspective projection only (editor camera is perspective)
+    return aspect;
+  }
+
+  float GetActiveCameraFov() {
+
+    const CameraComponent &cam =
+        GetComponent<CameraComponent>(m_uiActiveCameraObjectID);
+
+    return cam.m_fFOV;
   }
 
   glm::mat4 GetActiveCameraViewMat4() {

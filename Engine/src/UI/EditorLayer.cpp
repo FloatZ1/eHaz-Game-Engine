@@ -1015,17 +1015,52 @@ void DebugOptionsWindow(bool *open) {
   }
 }
 
-void DrawDebugStatsWindow(bool *open) {
+void EditorUILayer::DrawDebugStatsWindow(bool *open) {
   if (!*open)
     return;
 
   if (ImGui::Begin("Renderer Debug Stats")) {
+    const auto &depthTex =
+        Renderer::r_instance->GetShadowFB().GetDepthTexture();
+    const auto &spec = depthTex.GetSpec();
 
-    std::string numLights =
-        "Number of submitted lights: " +
-        std::to_string(Renderer::r_instance->GetVisibleLightCount()) + "\n";
+    if (spec.layers <= 1) {
+      ImGui::Text("Depth texture is not an array.");
+      ImGui::End();
+      return;
+    }
 
-    ImGui::Text(numLights.c_str());
+    float aspect = (float)spec.width / (float)spec.height;
+
+    for (int i = 0; i < spec.layers; i++) {
+      ImGui::Text("Cascade %d", i);
+
+      GLuint view = m_uiCascadeViews[i];
+
+      if (m_uiCascadeViews[i] == 0)
+        glGenTextures(1, &view);
+
+      glTextureView(view, GL_TEXTURE_2D, depthTex.GetTextureID(),
+                    depthTex.GetSpec().internalFormat, // ⚠️ force correct format
+                    0, 1, i, 1);
+
+      // 🔴 VERY IMPORTANT (you already did this, keep it)
+      glTextureParameteri(view, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+
+      // ✅ Make depth visible as grayscale
+      GLint swizzle[] = {GL_RED, GL_RED, GL_RED, GL_ONE};
+      glTextureParameteriv(view, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+
+      // ✅ NEAREST = clearer debugging
+      glTextureParameteri(view, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+      glTextureParameteri(view, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+      ImGui::Image((ImTextureID)(uintptr_t)view, ImVec2(256, 256 / aspect));
+
+      // glDeleteTextures(1, &view);
+
+      ImGui::Separator();
+    }
 
     ImGui::End();
   }

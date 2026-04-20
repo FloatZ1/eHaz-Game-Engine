@@ -189,6 +189,11 @@ class AppLayer : public eHaz::Layer {
       Renderer::r_instance->SetCameraPosition(camera.Position);
       Renderer::r_instance->SetViewProjection(camera.GetViewMatrix(),
                                               projection);
+      glm::vec2 wh = Renderer::r_instance->GetCurrentFramebufferWH();
+
+      Renderer::r_instance->aspect = wh.x / wh.y;
+
+      Renderer::r_instance->fov = 90.0f;
     }
     // Renderer::r_instance->UpdateDynamicData(
     //     materials, mat->first.data(), mat->first.size() *
