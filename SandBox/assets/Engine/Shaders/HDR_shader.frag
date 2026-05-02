@@ -14,6 +14,11 @@ layout(binding = 2) uniform sampler2D gPRM;
 layout(binding = 3) uniform sampler2D gEmission;
 layout(binding = 4) uniform sampler2D gDepth;
 
+uniform mat4 u_LightMatrices[4];
+uniform float u_CascadeEnds[4];
+uniform sampler2DArrayShadow u_ShadowMap;
+uniform vec3 u_AmbientSky = vec3(0.08, 0.12, 0.18);
+
 struct VP {
     mat4 view;
     mat4 projection;
@@ -26,7 +31,6 @@ struct SLight {
     vec4 direction_type;
     vec4 cone;
 };
-
 layout(std430, binding = 5) readonly buffer ssbo5 {
     VP camMats;
 };
@@ -34,6 +38,54 @@ layout(std430, binding = 5) readonly buffer ssbo5 {
 layout(std430, binding = 6) readonly buffer ssbo6 {
     SLight g_Lights[];
 };
+
+int GetCascadeIndex(float depth)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        if (depth < u_CascadeEnds[i])
+            return i;
+    }
+    return 3;
+}
+
+float ShadowCSM(vec3 worldPos, float NoL)
+{
+    float bias = max(0.0005 * (1.0 - NoL), 0.00005);
+
+    // view-space depth for cascade selection
+    float viewDepth = abs((camMats.view * vec4(worldPos, 1.0)).z);
+
+    int cascade = GetCascadeIndex(viewDepth);
+
+    // world -> light clip
+    vec4 lightSpace = u_LightMatrices[cascade] * vec4(worldPos, 1.0);
+
+    // perspective divide
+    vec3 proj = lightSpace.xyz / lightSpace.w;
+
+    // map from [-1,1] -> [0,1]
+    proj = proj * 0.5 + 0.5;
+
+    // outside shadow map = lit
+    if (proj.x < 0.0 || proj.x > 1.0 ||
+            proj.y < 0.0 || proj.y > 1.0 ||
+            proj.z > 1.0)
+        return 1.0;
+
+    // hardware compare
+    vec2 texelSize = 1.0 / textureSize(u_ShadowMap, 0).xy;
+    float shadow = 0.0;
+
+    for (int x = -1; x <= 1; x++) {
+        for (int y = -1; y <= 1; y++) {
+            vec2 offset = vec2(x, y) * texelSize;
+            shadow += texture(u_ShadowMap, vec4(proj.xy + offset, cascade, proj.z - bias));
+        }
+    }
+
+    return shadow / 9.0;
+}
 
 in vec2 TexCoords;
 out vec4 FragColor;
@@ -181,11 +233,16 @@ void main()
         float dotVH = max(dot(V, H), 0.0);
 
         vec3 radiance = light.color_intensity.xyz * light.color_intensity.w * attenuation;
+        float shadow = 1.0;
+        if (type == 2 && i == 0) {
+            shadow = ShadowCSM(worldPos, dotNL);
+        }
 
-        totalLighting += BRDF_Cook_Torance(F0, dotNV, dotNL, dotNH, dotVH, albedo, roughness, metallic) * dotNL * radiance;
+        totalLighting += BRDF_Cook_Torance(F0, dotNV, dotNL, dotNH, dotVH, albedo, roughness, metallic) * dotNL * radiance * shadow;
     }
 
-    vec3 finalColor = totalLighting + (emission);
+    vec3 ambient = albedo * u_AmbientSky;
+    vec3 finalColor = totalLighting + (emission) + ambient;
 
     // Basic HDR test output
     vec3 hdrColor = finalColor;

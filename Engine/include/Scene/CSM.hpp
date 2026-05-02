@@ -1,120 +1,152 @@
 #ifndef EHAZ_CSM_HPP
 #define EHAZ_CSM_HPP
+#include "DataStructs.hpp"
+#include "Renderer.hpp"
+#include "glm/ext/matrix_clip_space.hpp"
+#include "glm/ext/matrix_transform.hpp"
+#include "glm/matrix.hpp"
+#include "imgui.h"
 #include <algorithm>
 #include <array>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <utility>
 #include <vector>
+
+#define MAX_CSM 4
 
 class CSM {
 public:
-  static constexpr int CASCADE_COUNT = 4;
+  glm::mat4 lightMatrices[MAX_CSM];
+  float cascadeSplitsStart[MAX_CSM];
 
-  std::array<float, CASCADE_COUNT - 1> cascadeSplits;
+  float cascadeSplitsEnd[MAX_CSM];
+  void Update(glm::vec3 sunDir) {
 
-  std::array<glm::mat4, CASCADE_COUNT> lightMatrices;
+    auto view = Renderer::r_instance->GetViewMatrix();
+    float fov = Renderer::r_instance->fov;
+    float aspect = Renderer::r_instance->aspect;
+    float near = Renderer::r_instance->GetNearFarPlanes().x;
+    float far = Renderer::r_instance->GetNearFarPlanes().y;
 
-  glm::vec3 lightDir = glm::normalize(glm::vec3(20.0f, 50.0f, 20.0f));
+    float splits[MAX_CSM];
 
-  float cameraNear = 0.1f;
-  float cameraFar = 100.0f;
+    CalculateCascadeSplits(Renderer::r_instance->GetNearFarPlanes().x,
+                           Renderer::r_instance->GetNearFarPlanes().y, splits);
 
-public:
-  void SetCascadeSplits(float s0, float s1, float s2) {
-    cascadeSplits = {s0, s1, s2};
-  }
+    for (int c = 0; c < MAX_CSM; c++) {
 
-  const std::array<glm::mat4, CASCADE_COUNT> &
-  Update(const glm::mat4 &view, float fov, float aspect, glm::vec3 LightDir) {
-    lightDir = LightDir;
-    std::array<float, CASCADE_COUNT + 1> splits;
+      float prevSplit = (c == 0) ? near : splits[c - 1];
+      float currSplit = splits[c];
 
-    // build full split list: [near, s0, s1, s2, far]
-    splits[0] = cameraNear;
-    for (int i = 0; i < CASCADE_COUNT - 1; i++)
-      splits[i + 1] = cascadeSplits[i];
-    splits[CASCADE_COUNT - 1] = cameraFar;
+      this->cascadeSplitsEnd[c] = currSplit;
+      this->cascadeSplitsStart[c] = prevSplit;
 
-    for (int i = 0; i < CASCADE_COUNT; i++) {
-      lightMatrices[i] =
-          ComputeLightMatrix(view, fov, aspect, splits[i], splits[i + 1]);
+      glm::mat4 proj =
+          glm::perspective(glm::radians(fov), aspect, prevSplit, currSplit);
+
+      glm::mat4 invVP = glm::inverse(proj * view);
+
+      auto [lightProj, lightView] = GetLightPV(invVP, sunDir);
+
+      lightMatrices[c] = lightProj * lightView;
+
+      //  Renderer::r_instance->SetViewProjection(lightView, lightProj);
     }
-
-    return lightMatrices;
   }
 
 private:
-  std::vector<glm::vec4> GetFrustumCorners(const glm::mat4 &proj,
-                                           const glm::mat4 &view) {
-    glm::mat4 inv = glm::inverse(proj * view);
+  void CalculateCascadeSplits(float near, float far, float outSplits[MAX_CSM],
+                              float lambda = 0.5f) {
+    for (int i = 0; i < MAX_CSM; i++) {
+      float p = (i + 1) / float(MAX_CSM);
 
-    std::vector<glm::vec4> corners;
-    corners.reserve(8);
+      float uniform = near + (far - near) * p;
+      float log = near * pow(far / near, p);
 
-    for (int x = 0; x < 2; x++)
-      for (int y = 0; y < 2; y++)
-        for (int z = 0; z < 2; z++) {
-          glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f,
-                                         2.0f * z - 1.0f, 1.0f);
+      float d = glm::mix(uniform, log, lambda);
 
-          corners.push_back(pt / pt.w);
-        }
-
-    return corners;
-  }
-
-  glm::mat4 ComputeLightMatrix(const glm::mat4 &view, float fov, float aspect,
-                               float nearPlane, float farPlane) {
-    // 1. camera projection for this slice
-    glm::mat4 proj =
-        glm::perspective(glm::radians(fov), aspect, nearPlane, farPlane);
-
-    auto corners = GetFrustumCorners(proj, view);
-
-    // 2. frustum center
-    glm::vec3 center(0.0f);
-    for (auto &c : corners)
-      center += glm::vec3(c);
-    center /= corners.size();
-
-    // 3. light view
-    glm::mat4 lightView =
-        glm::lookAt(center + lightDir, center, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // 4. fit bounds in light space
-    float minX = std::numeric_limits<float>::max();
-    float maxX = std::numeric_limits<float>::lowest();
-    float minY = std::numeric_limits<float>::max();
-    float maxY = std::numeric_limits<float>::lowest();
-    float minZ = std::numeric_limits<float>::max();
-    float maxZ = std::numeric_limits<float>::lowest();
-
-    for (auto &c : corners) {
-      glm::vec4 trf = lightView * c;
-
-      minX = std::min(minX, trf.x);
-      maxX = std::max(maxX, trf.x);
-      minY = std::min(minY, trf.y);
-      maxY = std::max(maxY, trf.y);
-      minZ = std::min(minZ, trf.z);
-      maxZ = std::max(maxZ, trf.z);
+      outSplits[i] = d;
     }
 
-    // 5. stabilize depth range
-    float zMult = 10.0f;
+    // ensure last cascade reaches far plane
+    outSplits[MAX_CSM - 1] = far;
+  }
+
+  std::pair<glm::mat4, glm::mat4> GetLightPV(glm::mat4 p_m4InvVP,
+                                             glm::vec3 sunDir) {
+
+    glm::vec4 corners[8] = {glm::vec4(-1.0f, -1.0f, 1.0f, 1.0f),
+                            glm::vec4(-1.0f, -1.0f, -1.0f, 1.0f),
+                            glm::vec4(-1.0f, 1.0f, 1.0f, 1.0f),
+                            glm::vec4(-1.0f, 1.0f, -1.0f, 1.0f),
+                            glm::vec4(1.0f, -1.0f, 1.0f, 1.0f),
+                            glm::vec4(1.0f, -1.0f, -1.0f, 1.0f),
+                            glm::vec4(1.0f, 1.0f, 1.0f, 1.0f),
+                            glm::vec4(1.0f, 1.0f, -1.0f, 1.0f)};
+
+    for (uint32_t i = 0; i < 8; i++) {
+      corners[i] = p_m4InvVP * corners[i];
+      corners[i] /= corners[i].w;
+    }
+
+    glm::vec3 center = glm::vec3(0.0f);
+
+    for (const auto &v : corners) {
+
+      center += glm::vec3(v);
+    }
+
+    center /= 8.0f;
+
+    // center += Renderer::r_instance->cameraPosition;
+
+    const glm::mat4 l_m4LightView =
+        glm::lookAt(center + sunDir * Renderer::r_instance->GetLightDistance(),
+                    center, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::vec3 v0 = glm::vec3(l_m4LightView * corners[0]);
+
+    float minX = v0.x, maxX = v0.x;
+    float minY = v0.y, maxY = v0.y;
+    float minZ = v0.z, maxZ = v0.z;
+
+    for (uint32_t i = 0; i < 8; i++) {
+      glm::vec3 v = glm::vec3(l_m4LightView * corners[i]);
+
+      minX = std::min(minX, v.x);
+      maxX = std::max(maxX, v.x);
+      minY = std::min(minY, v.y);
+      maxY = std::max(maxY, v.y);
+      minZ = std::min(minZ, v.z);
+      maxZ = std::max(maxZ, v.z);
+    }
+
+    float shadowMapResolution = Renderer::r_instance->GetCSM_Size().x;
+
+    float worldUnitsPerTexel = (maxX - minX) / shadowMapResolution;
+
+    minX = floor(minX / worldUnitsPerTexel) * worldUnitsPerTexel;
+    minY = floor(minY / worldUnitsPerTexel) * worldUnitsPerTexel;
+
+    maxX = ceil(maxX / worldUnitsPerTexel) * worldUnitsPerTexel;
+    maxY = ceil(maxY / worldUnitsPerTexel) * worldUnitsPerTexel;
+
+    const float zMult = 10.0f;
+
     if (minZ < 0)
       minZ *= zMult;
     else
       minZ /= zMult;
+
     if (maxZ < 0)
       maxZ /= zMult;
     else
       maxZ *= zMult;
 
-    // 6. orthographic projection
-    glm::mat4 lightProj = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
-
-    return lightProj * lightView;
+    return {glm::ortho(minX, maxX, minY, maxY, minZ, maxZ), l_m4LightView};
   }
+
+  void DebugDraw(glm::vec3 Min, glm::vec3 Max) {}
 };
 #endif

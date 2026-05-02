@@ -1,3 +1,6 @@
+#ifndef EHAZ_OS_HPP
+#define EHAZ_OS_HPP
+
 #include "Renderer.hpp"
 #include <SDL3/SDL.h>
 #include <functional>
@@ -47,3 +50,4 @@ inline void OpenNativeFileDialog(bool isSave,
 }
 
 } // namespace eHaz
+#endif

@@ -63,6 +63,9 @@ struct SModelAsset {
   bool m_bAnimated;
   std::string m_strPath;
 
+  bool m_bIsBundled = false;
+  std::string m_strName;
+
 private:
   friend class boost::serialization::access;
 
@@ -72,6 +75,7 @@ private:
     ar & m_scIdShader;
     ar & m_bAnimated;
     ar & m_strPath;
+    ar & m_bIsBundled;
   }
 };
 

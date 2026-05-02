@@ -242,7 +242,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
     l_asModel.asset = l_maLoadedModel;
     if (m_freeModelSlots.size() > 0) {
 
-      uint32_t l_uiSlotID = m_freeModelSlots[m_freeModelSlots.size() - 1];
+      uint32_t l_uiSlotID = m_freeModelSlots.back();
 
       l_asModel.generation = ++m_vModelAssets[l_uiSlotID].generation;
       l_mhHandle.index = l_uiSlotID;
@@ -768,8 +768,8 @@ void CAssetSystem::RemoveShader(ShaderHandle p_Handle) {
 
     auto &l_saShader = m_vShaderAssets[p_Handle.index];
 
-    l_renderer->p_shaderManager->RemoveShaderProgramme(
-        l_saShader.asset.m_hashedID);
+    //  l_renderer->p_shaderManager->RemoveShaderProgramme(
+    //      l_saShader.asset.m_hashedID);
 
     m_umShaderHandles.erase(l_saShader.asset.m_strSpecPath);
   }
@@ -803,7 +803,7 @@ void CAssetSystem::ClearAll() {
   for (auto &asset : m_vShaderAssets) {
     if (!asset.alive)
       continue;
-    l_renderer->p_shaderManager->RemoveShaderProgramme(asset.asset.m_hashedID);
+    //  l_renderer->p_shaderManager->RemoveShaderProgramme(asset.asset.m_hashedID);
   }
 
   CScriptingEngine::s_pInstance->Clear();

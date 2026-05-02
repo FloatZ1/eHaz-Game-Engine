@@ -592,9 +592,66 @@ void SceneOptionsMenu(bool *open, uint32_t selectedNode,
     ImGui::Text("Atmosphere Settings");
 
     // Rayleigh, Mie, and Ozone Beta Vectors
-    ImGui::ColorEdit3("Beta Rayleigh", &currentScene.m_v3BetaRayleigh.x, 0.01f);
-    ImGui::ColorEdit3("Beta Mie", &currentScene.m_v3BetaMie.x, 0.01f);
-    ImGui::ColorEdit3("Beta Ozone", &currentScene.m_v3BetaOzone.x, 0.01f);
+    /* ImGui::ColorEdit3("Beta Rayleigh", &currentScene.m_v3BetaRayleigh.x,
+     0.01f); ImGui::ColorEdit3("Beta Mie", &currentScene.m_v3BetaMie.x, 0.01f);
+     ImGui::ColorEdit3("Beta Ozone", &currentScene.m_v3BetaOzone.x, 0.01f);  */
+
+    {
+      glm::vec3 temp = currentScene.m_v3BetaRayleigh;
+      float magnitude = glm::length(temp);
+
+      if (magnitude > 0.0f)
+        temp /= magnitude;
+
+      float color[3] = {temp.r, temp.g, temp.b};
+
+      if (ImGui::ColorEdit3("Beta Rayleigh", color, ImGuiColorEditFlags_HDR)) {
+        glm::vec3 edited(color[0], color[1], color[2]);
+
+        if (glm::length(edited) > 0.0f)
+          edited = glm::normalize(edited);
+
+        currentScene.m_v3BetaRayleigh = edited * magnitude;
+      }
+    }
+
+    {
+      glm::vec3 temp = currentScene.m_v3BetaMie;
+      float magnitude = glm::length(temp);
+
+      if (magnitude > 0.0f)
+        temp /= magnitude;
+
+      float color[3] = {temp.r, temp.g, temp.b};
+
+      if (ImGui::ColorEdit3("Beta Mie", color, ImGuiColorEditFlags_HDR)) {
+        glm::vec3 edited(color[0], color[1], color[2]);
+
+        if (glm::length(edited) > 0.0f)
+          edited = glm::normalize(edited);
+
+        currentScene.m_v3BetaMie = edited * magnitude;
+      }
+    }
+
+    {
+      glm::vec3 temp = currentScene.m_v3BetaOzone;
+      float magnitude = glm::length(temp);
+
+      if (magnitude > 0.0f)
+        temp /= magnitude;
+
+      float color[3] = {temp.r, temp.g, temp.b};
+
+      if (ImGui::ColorEdit3("Beta Ozone", color, ImGuiColorEditFlags_HDR)) {
+        glm::vec3 edited(color[0], color[1], color[2]);
+
+        if (glm::length(edited) > 0.0f)
+          edited = glm::normalize(edited);
+
+        currentScene.m_v3BetaOzone = edited * magnitude;
+      }
+    }
 
     ImGui::Separator();
 
@@ -1020,6 +1077,10 @@ void EditorUILayer::DrawDebugStatsWindow(bool *open) {
     return;
 
   if (ImGui::Begin("Renderer Debug Stats")) {
+
+    ImGui::Text("Visible lights: %d",
+                Renderer::r_instance->GetVisibleLightCount());
+
     const auto &depthTex =
         Renderer::r_instance->GetShadowFB().GetDepthTexture();
     const auto &spec = depthTex.GetSpec();
@@ -1035,10 +1096,10 @@ void EditorUILayer::DrawDebugStatsWindow(bool *open) {
     for (int i = 0; i < spec.layers; i++) {
       ImGui::Text("Cascade %d", i);
 
-      GLuint view = m_uiCascadeViews[i];
-
       if (m_uiCascadeViews[i] == 0)
-        glGenTextures(1, &view);
+        glGenTextures(1, &m_uiCascadeViews[i]);
+
+      GLuint view = m_uiCascadeViews[i];
 
       glTextureView(view, GL_TEXTURE_2D, depthTex.GetTextureID(),
                     depthTex.GetSpec().internalFormat, // ⚠️ force correct format

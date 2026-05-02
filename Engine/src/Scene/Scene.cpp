@@ -442,7 +442,7 @@ void Scene::SubmitVisibleObjects(
   static SFrustum s_fSunFrustum;
 
   s_fSunFrustum =
-      s_fSunFrustum.ExtractFrustum(m_csmShadowMaps.lightMatrices[3]);
+      s_fSunFrustum.ExtractFrustum(m_csmShadowMaps.lightMatrices[0]);
 
   auto cameraFuture = std::async(std::launch::async, &COctree::QueryRenderables,
                                  m_otOctree, p_fFrustum);
@@ -496,13 +496,21 @@ void Scene::SubmitVisibleObjects(
 
   auto shadowRanges = Renderer::p_renderQueue->SubmitRenderCommands();
 
-  auto &lightMats = m_csmShadowMaps.Update(
-      Renderer::r_instance->GetViewMatrix(), Renderer::r_instance->fov,
-      Renderer::r_instance->aspect, (-m_v3SunDirection));
+  m_csmShadowMaps.Update((m_v3SunDirection));
 
-  glm::mat4 arr[4] = {lightMats[0], lightMats[1], lightMats[2], lightMats[3]};
+  auto &r_sArr = Renderer::r_instance->m_arrShadowMatrices;
+  r_sArr[0] = m_csmShadowMaps.lightMatrices[0];
+  r_sArr[1] = m_csmShadowMaps.lightMatrices[1];
+  r_sArr[2] = m_csmShadowMaps.lightMatrices[2];
+  r_sArr[3] = m_csmShadowMaps.lightMatrices[3];
 
-  Renderer::r_instance->RenderShadowMapTextures(shadowRanges, arr);
+  for (int i = 0; i < MAX_CSM; i++) {
+
+    Renderer::r_instance->u_CascadeEnds[i] =
+        m_csmShadowMaps.cascadeSplitsEnd[i];
+  }
+
+  Renderer::r_instance->RenderShadowMapTextures(shadowRanges);
 
   for (uint32_t &objectID : l_vVisibleModels) {
 
