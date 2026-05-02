@@ -28,6 +28,9 @@ Application::Application(AppSpec spec) : spec(spec) {
   std::string SkyModel_shader =
       eRESOURCES_PATH "Engine/Shaders/SkyDome_shader_spec.json";
 
+  std::string CSM_shader =
+      eRESOURCES_PATH "Engine/Shaders/CSM/CSM_shader_spec.json";
+
   instance = this;
 
   physics_engine.Initialize();
@@ -41,10 +44,13 @@ Application::Application(AppSpec spec) : spec(spec) {
 
   eHaz::ShaderHandle l_shSkyModel = asset_system.LoadShader(SkyModel_shader);
 
+  eHaz::ShaderHandle l_shCSM = asset_system.LoadShader(CSM_shader);
+
   renderer.SetHDRShader(asset_system.GetShader(l_shHDR)->m_hashedID);
   renderer.SetToneShader(asset_system.GetShader(l_shTone)->m_hashedID);
   renderer.SetSkyboxShader(asset_system.GetShader(l_shSky)->m_hashedID);
   renderer.SetSkyModelShader(asset_system.GetShader(l_shSkyModel)->m_hashedID);
+  renderer.SetCSM_shader(asset_system.GetShader(l_shCSM)->m_hashedID);
 
   currentScene.m_mhSkyModelTop =
       asset_system.LoadModel(currentScene.m_strDefaultSkyModelTop_Path);

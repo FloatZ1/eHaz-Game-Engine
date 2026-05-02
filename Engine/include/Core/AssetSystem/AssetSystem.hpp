@@ -34,6 +34,9 @@ public:
 
   ModelHandle LoadModel(std::string p_strPath, bool p_bIsAnimated = false);
 
+  // Loads a non animated model where each mesh is its own seperate model
+  void LoadModelSeperate(std::string p_strPath);
+
   TextureHandle LoadTexture(std::string p_strPath);
   MaterialHandle LoadMaterial(std::string p_strPath);
 

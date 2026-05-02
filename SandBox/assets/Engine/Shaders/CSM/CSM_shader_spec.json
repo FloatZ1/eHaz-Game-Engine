@@ -1,0 +1,7 @@
+{
+    "vertex": "Engine/Shaders/CSM/CSM_shader.vert",
+    "fragment": "Engine/Shaders/CSM/CSM_shader.frag",
+    "geometry": "Engine/Shaders/CSM/CSM_shader.geom",
+    "compute": null,
+    "pipeline_flags": []
+}

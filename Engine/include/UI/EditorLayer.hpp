@@ -59,6 +59,8 @@ class EditorUILayer : public Layer {
   bool m_showRendererOptions = false;
   bool m_showDebugRenderStats = false;
 
+  GLuint m_uiCascadeViews[4]{0, 0, 0, 0};
+
   std::vector<std::string> m_vAvailableFlags;
 
   ImFontConfig m_fcSymbolConfig;
@@ -78,6 +80,8 @@ class EditorUILayer : public Layer {
   void ShaderSpecCreationWindow(bool *open);
 
   void MaterialSpecCreationWindow(bool *open);
+
+  void DrawDebugStatsWindow(bool *open);
 
   void DrawGameViewPort() {
     ImGui::Begin("Viewport");
