@@ -50,27 +50,27 @@ class AppLayer : public eHaz::Layer {
     if (c_window->isCursorLocked()) {
       if (input_system.GetKeyDown(EHAZK_W)) {
         camera.ProcessKeyboard(FORWARD, static_cast<float>(deltaTime));
-        SDL_Log("W KEY PRESSED\n");
+        //  SDL_Log("W KEY PRESSED\n");
       }
       if (input_system.GetKeyDown(EHAZK_A)) {
         camera.ProcessKeyboard(LEFT, static_cast<float>(deltaTime));
-        SDL_Log("A KEY PRESSED\n");
+        //  SDL_Log("A KEY PRESSED\n");
       }
       if (input_system.GetKeyDown(EHAZK_S)) {
         camera.ProcessKeyboard(BACKWARD, static_cast<float>(deltaTime));
-        SDL_Log("S KEY PRESSED\n");
+        //  SDL_Log("S KEY PRESSED\n");
       }
       if (input_system.GetKeyDown(EHAZK_D)) {
         camera.ProcessKeyboard(RIGHT, static_cast<float>(deltaTime));
-        SDL_Log("D KEY PRESSED\n");
+        //  SDL_Log("D KEY PRESSED\n");
       }
       if (input_system.GetKeyDown(EHAZK_SPACE)) {
         camera.ProcessKeyboard(UP, static_cast<float>(deltaTime));
-        SDL_Log("SPACE KEY PRESSED\n");
+        //  SDL_Log("SPACE KEY PRESSED\n");
       }
       if (input_system.GetKeyDown(EHAZK_LCTRL)) {
         camera.ProcessKeyboard(DOWN, static_cast<float>(deltaTime));
-        SDL_Log("CTRL KEY PRESSED\n");
+        //  SDL_Log("CTRL KEY PRESSED\n");
       }
 
       float xoffset = static_cast<float>(input_system.GetMouseRelativeX());
@@ -117,7 +117,7 @@ class AppLayer : public eHaz::Layer {
 
     auto &asset_system = eHaz_Core::Application::instance->GetAssetSystem();
 
-    defaultMat = asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat.json");
+    defaultMat = asset_system.LoadMaterial(eRESOURCES_PATH "missing_mat1.json");
 
     // auto mat = Renderer::r_instance->p_materialManager->SubmitMaterials();
 

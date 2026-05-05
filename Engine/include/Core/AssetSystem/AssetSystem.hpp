@@ -35,7 +35,8 @@ public:
   ModelHandle LoadModel(std::string p_strPath, bool p_bIsAnimated = false);
 
   // Loads a non animated model where each mesh is its own seperate model
-  void LoadModelSeperate(std::string p_strPath);
+  void LoadModelSeperate(std::string p_strPath, bool p_bInsertIntoScene,
+                         ShaderHandle p_shShader);
 
   TextureHandle LoadTexture(std::string p_strPath);
   MaterialHandle LoadMaterial(std::string p_strPath);
@@ -131,6 +132,13 @@ public:
 
   void ValidateTexture(SAssetSlot<STextureAsset> &p_taTexture);
 
+  std::string ExportMaterialSpecJSON(
+      const std::string &fileName, const std::string &albedoPath,
+      const std::string &normalPath, const std::string &prmPath,
+      const std::string &emissionPath, float luminance,
+      const std::filesystem::path &exportDirectory,
+      const std::filesystem::path &resourceRoot);
+
   void Update();
 
 private:
@@ -190,6 +198,7 @@ private:
   std::vector<uint32_t> m_freeScriptSlots;
 
   std::unordered_map<std::string, ModelHandle> m_umModelHandles;
+
   std::unordered_map<std::string, MaterialHandle> m_umMaterialHandles;
   std::unordered_map<std::string, TextureHandle> m_umTextureHandles;
   std::unordered_map<std::string, ShaderHandle> m_umShaderHandles;

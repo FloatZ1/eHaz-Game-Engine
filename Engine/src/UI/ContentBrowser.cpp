@@ -1,3 +1,4 @@
+#include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 #include "Core/AssetSystem/AssetSystem.hpp"
 #include "Renderer.hpp"
@@ -71,14 +72,22 @@ void EditorUILayer::DrawContentBrowser() {
 
     if (!asset.alive)
       continue;
+    if (!asset.asset.m_bIsBundled) {
+      DrawItem(
+          m_umUiImages["model_icon.png"]->GetTexture(),
+          std::filesystem::path(asset.asset.m_strPath).filename().string(),
+          [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveModel((h)); },
+          CAssetSystem::m_pInstance->GetModelHandle(
+              asset.asset.m_strPath +
+              ((asset.asset.m_bAnimated) ? "#anim" : "#static")));
+    } else {
 
-    DrawItem(
-        m_umUiImages["model_icon.png"]->GetTexture(),
-        std::filesystem::path(asset.asset.m_strPath).filename().string(),
-        [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveModel((h)); },
-        CAssetSystem::m_pInstance->GetModelHandle(
-            asset.asset.m_strPath +
-            ((asset.asset.m_bAnimated) ? "#anim" : "#static")));
+      DrawItem(
+          m_umUiImages["model_icon.png"]->GetTexture(), asset.asset.m_strName,
+          [](SAssetHandle &h) { CAssetSystem::m_pInstance->RemoveModel((h)); },
+          CAssetSystem::m_pInstance->GetModelHandle(
+              asset.asset.m_strPath + "child:" + asset.asset.m_strName));
+    }
   }
 
   // ───────────────── Materials ─────────────────
@@ -186,6 +195,8 @@ void EditorUILayer::DrawFolderBrowser() {
   int itemIndex = 0;
 
   ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(padding, padding));
+  static bool s_bOpenBundleImporter = false;
+  static std::string s_strBundlePath = "";
 
   for (auto &entry : fs::directory_iterator(currentDirectory)) {
     const fs::path &path = entry.path();
@@ -206,8 +217,19 @@ void EditorUILayer::DrawFolderBrowser() {
     }
     if (ImGui::BeginPopupContextItem()) {
 
-      if (ImGui::MenuItem("Load as Model") && extension == ".glb") {
+      if (ImGui::MenuItem("Load as Model") &&
+          (extension == ".glb" || extension == ".gltf")) {
         CAssetSystem::m_pInstance->LoadModel(path);
+      }
+      if (ImGui::MenuItem("Load as Models (seperate meshes)") &&
+          (extension == ".glb" || extension == ".gltf")) {
+
+        s_bOpenBundleImporter = true;
+        s_strBundlePath = path;
+      }
+      if (ImGui::MenuItem("Load as Model (Animated)") &&
+          (extension == ".glb" || extension == ".gltf")) {
+        CAssetSystem::m_pInstance->LoadModel(path, true);
       }
 
       if (ImGui::MenuItem("Load as Convex Hull") &&
@@ -255,6 +277,109 @@ void EditorUILayer::DrawFolderBrowser() {
 
   ImGui::PopStyleVar();
   ImGui::EndChild();
+
+  if (s_bOpenBundleImporter) {
+    static bool s_bImportIntoScene = false;
+    ImGui::OpenPopup("Bundle Import settings");
+    ImGuiViewport *viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Appearing,
+                            ImVec2(0.5f, 0.5f));
+    ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+    if (ImGui::BeginPopupModal("Bundle Import settings")) {
+
+      ImGui::Text("Import Settings for:");
+      ImGui::TextColored(ImVec4(1, 1, 0, 1), "%s", s_strBundlePath.c_str());
+      ImGui::Separator();
+
+      ImGui::Checkbox("Create objects in scene", &s_bImportIntoScene);
+
+      if (s_bImportIntoScene) {
+
+        auto &l_asAssetSystem =
+            eHaz_Core::Application::instance->GetAssetSystem();
+
+        auto &l_vShaders = l_asAssetSystem.GetAllShaders();
+
+        static ShaderHandle l_shSelectedHandle = ShaderHandle();
+
+        std::string l_currentShaderName = "None";
+
+        if (l_asAssetSystem.isValidShader(l_shSelectedHandle)) {
+          const auto *l_shaderAsset =
+              l_asAssetSystem.GetShader(l_shSelectedHandle);
+
+          if (l_shaderAsset) {
+            l_currentShaderName =
+                std::filesystem::path(l_shaderAsset->m_strSpecPath)
+                    .filename()
+                    .string();
+          }
+        }
+
+        if (ImGui::BeginCombo("Shader Program", l_currentShaderName.c_str())) {
+          for (size_t i = 0; i < l_vShaders.size(); ++i) {
+            auto &l_asShader = l_vShaders[i];
+
+            if (!l_asShader.alive)
+              continue;
+
+            bool isSelected =
+                (l_shSelectedHandle.index == i &&
+                 l_shSelectedHandle.generation == l_asShader.generation);
+
+            std::string l_shaderName =
+                std::filesystem::path(l_asShader.asset.m_strSpecPath)
+                    .filename()
+                    .string();
+
+            if (ImGui::Selectable(l_shaderName.c_str(), isSelected)) {
+              l_shSelectedHandle.index = i;
+              l_shSelectedHandle.generation = l_asShader.generation;
+            }
+
+            if (isSelected)
+              ImGui::SetItemDefaultFocus();
+          }
+
+          ImGui::EndCombo();
+        }
+
+        if (l_asAssetSystem.isValidShader(l_shSelectedHandle)) {
+          ImGui::Text(
+              "Current Shader: %s",
+              std::filesystem::path(
+                  l_asAssetSystem.GetShader(l_shSelectedHandle)->m_strSpecPath)
+                  .filename()
+                  .string()
+                  .c_str());
+        } else {
+          ImGui::Text("Current Shader: None");
+        }
+
+        if (ImGui::Button("Confirm")) {
+          CAssetSystem::m_pInstance->LoadModelSeperate(s_strBundlePath, true,
+                                                       l_shSelectedHandle);
+
+          s_bOpenBundleImporter = false;
+        }
+
+      } else {
+
+        if (ImGui::Button("Confirm")) {
+          CAssetSystem::m_pInstance->LoadModelSeperate(s_strBundlePath, false,
+                                                       ShaderHandle());
+
+          s_bOpenBundleImporter = false;
+        }
+      }
+
+      if (ImGui::Button("Close")) {
+        s_bOpenBundleImporter = false;
+      }
+      ImGui::EndPopup();
+    }
+  }
+
   ImGui::End();
 }
 } // namespace eHaz

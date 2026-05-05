@@ -33,7 +33,17 @@ public:
   }
 
   void ReparentNode(uint32_t index, uint32_t newParent) {
+
+    if (nodes[index]->parent != UINT32_MAX) {
+      auto &OldParent = nodes[nodes[index]->parent];
+
+      OldParent->children.erase(std::remove(OldParent->children.begin(),
+                                            OldParent->children.end(), index),
+                                OldParent->children.end());
+    }
     nodes[index]->parent = newParent;
+
+    nodes[newParent]->children.push_back(index);
   }
 
   void UpdateWorldTransforms();

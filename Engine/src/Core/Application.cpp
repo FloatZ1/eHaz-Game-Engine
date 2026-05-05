@@ -60,6 +60,12 @@ Application::Application(AppSpec spec) : spec(spec) {
   currentScene.m_mhSkyModelSide2 =
       asset_system.LoadModel(currentScene.m_strDefaultSkyModelSide2_Path);
 
+  currentScene.m_mhErrorModel =
+      asset_system.LoadModel(eRESOURCES_PATH "Engine/Models/error_model.glb");
+
+  currentScene.m_mathMissingMat = asset_system.LoadMaterial(
+      eRESOURCES_PATH "Engine/Materials/Missing/missing_mat.json");
+
   ModelID l_midSkyTop =
       asset_system.GetModel(currentScene.m_mhSkyModelTop)->m_modelID;
 

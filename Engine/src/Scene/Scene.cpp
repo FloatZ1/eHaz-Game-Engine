@@ -574,34 +574,32 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
 
   ar & version;
 
-  ar & sceneName;
   ar & scene_graph;
+  ar & sceneName;
   ar & m_strScenePath;
   ar & m_uiActiveCameraObjectID;
-
-  ar & m_strDefaultSkyModelTop_Path;
-  ar & m_strDefaultSkyModelSide1_Path;
-  ar & m_strDefaultSkyModelSide2_Path;
-
-  ar & m_fSkyModelSize;
-  ar & m_mhSkyModelSide1;
-  ar & m_mhSkyModelSide2;
-  ar & m_mhSkyModelTop;
-
   ar & m_v3BetaRayleigh;
   ar & m_v3BetaMie;
   ar & m_v3BetaOzone;
-
   ar & m_fLightExposure;
   ar & m_fSolarBrightness;
-
   ar & m_v3SunDirection;
-
   ar & m_fRayLeighScale;
   ar & m_fMieScale;
   ar & m_fSunScale;
-
   ar & m_v3SunColor;
+  ar & m_mhErrorModel;
+  ar & m_mathMissingMat;
+  ar & m_mhSkyModelTop;
+  ar & m_mhSkyModelSide1;
+  ar & m_mhSkyModelSide2;
+  ar & m_mathSkyModelTop;
+  ar & m_mathSkyModelSide1;
+  ar & m_mathSkyModelSide2;
+  ar & m_fSkyModelSize;
+  ar & m_strDefaultSkyModelTop_Path;
+  ar & m_strDefaultSkyModelSide1_Path;
+  ar & m_strDefaultSkyModelSide2_Path;
 
   CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
   ar & loadedAssets;
@@ -648,35 +646,33 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
 
     ar & version;
 
-    ar & sceneName;
     ar & scene_graph;
+    ar & sceneName;
     ar & m_strScenePath;
     ar & m_uiActiveCameraObjectID;
-
+    ar & m_v3BetaRayleigh;
+    ar & m_v3BetaMie;
+    ar & m_v3BetaOzone;
+    ar & m_fLightExposure;
+    ar & m_fSolarBrightness;
+    ar & m_v3SunDirection;
+    ar & m_fRayLeighScale;
+    ar & m_fMieScale;
+    ar & m_fSunScale;
+    ar & m_v3SunColor;
+    ar & m_mhErrorModel;
+    ar & m_mathMissingMat;
+    ar & m_mhSkyModelTop;
+    ar & m_mhSkyModelSide1;
+    ar & m_mhSkyModelSide2;
+    ar & m_mathSkyModelTop;
+    ar & m_mathSkyModelSide1;
+    ar & m_mathSkyModelSide2;
+    ar & m_fSkyModelSize;
     ar & m_strDefaultSkyModelTop_Path;
     ar & m_strDefaultSkyModelSide1_Path;
     ar & m_strDefaultSkyModelSide2_Path;
 
-    ar & m_fSkyModelSize;
-    ar & m_mhSkyModelSide1;
-    ar & m_mhSkyModelSide2;
-    ar & m_mhSkyModelTop;
-    if (version > 0) {
-      ar & m_v3BetaRayleigh;
-      ar & m_v3BetaMie;
-      ar & m_v3BetaOzone;
-
-      ar & m_fLightExposure;
-      ar & m_fSolarBrightness;
-
-      ar & m_v3SunDirection;
-
-      ar & m_fRayLeighScale;
-      ar & m_fMieScale;
-      ar & m_fSunScale;
-
-      ar & m_v3SunColor;
-    }
     CAssetSystem loadedAssets(true);
     ar & loadedAssets;
     // ar & m_uiActiveCameraObjectID;

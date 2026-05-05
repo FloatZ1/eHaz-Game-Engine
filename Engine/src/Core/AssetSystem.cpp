@@ -1,4 +1,5 @@
 #include "Core/AssetSystem/AssetSystem.hpp"
+#include "Components.hpp"
 #include "Core/Application.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 
@@ -16,6 +17,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include <filesystem>
+#include <fstream>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -212,6 +214,110 @@ void CAssetSystem::SetDefaultAnimatedModelShader(
     eHazGraphics::ShaderComboID p_id) {
   m_scidDefaultAnimatedModelShader = p_id;
 }
+
+void CAssetSystem::LoadModelSeperate(std::string p_strPath,
+                                     bool p_bInsertIntoScene,
+                                     ShaderHandle p_shShader) {
+  auto &l_renderer = eHazGraphics::Renderer::r_instance;
+
+  std::vector<ModelID> l_vModelIds =
+      l_renderer->p_meshManager->LoadModelSeperated(p_strPath);
+
+  auto &scene = eHaz_Core::Application::instance->getActiveScene();
+
+  uint32_t l_uiParentObject;
+  if (p_bInsertIntoScene) {
+
+    l_uiParentObject = scene.AddGameObject(
+        std::filesystem::path(p_strPath).filename().string());
+  }
+
+  for (uint32_t i = 0; i < l_vModelIds.size(); i++) {
+    ModelID &modelID = l_vModelIds[i];
+
+    ModelHandle l_mhHandle;
+    SModelAsset l_maSeperatedModel;
+    SAssetSlot<SModelAsset> l_asModel;
+
+    l_maSeperatedModel.m_modelID = modelID;
+    l_maSeperatedModel.m_bAnimated = false;
+    l_maSeperatedModel.m_bIsBundled = true;
+    l_maSeperatedModel.m_strPath = p_strPath;
+    l_maSeperatedModel.m_strName =
+        l_renderer->p_meshManager->GetModel(modelID)->GetName();
+    l_maSeperatedModel.m_scIdShader = m_scidDefaultModelShader;
+
+    l_asModel.alive = true;
+    l_asModel.asset = l_maSeperatedModel;
+
+    if (m_freeModelSlots.size() > 0) {
+
+      uint32_t l_uiSlotID = m_freeModelSlots.back();
+
+      l_asModel.generation = ++m_vModelAssets[l_uiSlotID].generation;
+      l_mhHandle.index = l_uiSlotID;
+      l_mhHandle.generation = l_asModel.generation;
+      m_vModelAssets[l_uiSlotID] = l_asModel;
+      m_freeModelSlots.pop_back();
+    } else {
+      l_asModel.generation = 0;
+
+      m_vModelAssets.push_back(l_asModel);
+      l_mhHandle.index = m_vModelAssets.size() - 1;
+      l_mhHandle.generation = l_asModel.generation;
+    }
+
+    std::string key = p_strPath + "#child:" + l_maSeperatedModel.m_strName;
+    m_umModelHandles.emplace(key, l_mhHandle);
+
+    if (p_bInsertIntoScene) {
+
+      uint32_t l_uiCurrentObject =
+          scene.AddGameObject(l_asModel.asset.m_strName, l_uiParentObject);
+
+      scene.AddComponentPtr<ModelComponent>(l_uiCurrentObject);
+
+      auto &component = scene.GetComponent<ModelComponent>(l_uiCurrentObject);
+      component.m_Handle = l_mhHandle;
+      component.m_ShaderHandle = p_shShader;
+
+      // TODO: Add material assignement based on the materials from the file
+      // component.materialHandle = m_umMaterialHandles.begin()->second;
+
+      std::optional<SMaterialMetadata> meshMaterial =
+          l_renderer->p_meshManager->GetMeshMetaData(l_asModel.asset.m_modelID);
+
+      if (meshMaterial) {
+
+        std::string l_strParentDir =
+            std::filesystem::path(l_asModel.asset.m_strPath)
+                .parent_path()
+                .string() +
+            "/";
+
+        std::string meshMatPath = ExportMaterialSpecJSON(
+            l_asModel.asset.m_strName + "_mat",
+            l_strParentDir + meshMaterial->m_strAlbedo,
+            l_strParentDir + meshMaterial->m_strNormal,
+            l_strParentDir + meshMaterial->m_strPRM,
+            l_strParentDir + meshMaterial->m_strEmission, 1.0f,
+            std::filesystem::path(l_asModel.asset.m_strPath)
+                .parent_path()
+                .string(),
+            eRESOURCES_PATH);
+        MaterialHandle l_mhLoadedHandle = LoadMaterial(meshMatPath);
+        component.materialHandle = l_mhLoadedHandle;
+
+      } else {
+
+        component.materialHandle = m_umMaterialHandles.begin()->second;
+      }
+
+      scene.scene_graph.nodes[l_uiCurrentObject]->m_bUbdateOctree = true;
+    }
+  }
+}
+
 ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
   std::string key = p_strPath + (p_bIsAnimated ? "#anim" : "#static");
   if (m_umModelHandles.contains(key) && m_bInvalid == false)
@@ -224,7 +330,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
   if (!p_bIsAnimated) {
 
     ModelID l_id;
-    if (p_pPath.extension() == ".glb") {
+    if (p_pPath.extension() == ".glb" || p_pPath.extension() == ".gltf") {
       l_id = l_renderer->p_meshManager->LoadModel(p_strPath);
     } else if (p_pPath.extension() == ".hzmdl") {
 
@@ -236,6 +342,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
     l_maLoadedModel.m_strPath = p_strPath;
     l_maLoadedModel.m_scIdShader = m_scidDefaultModelShader;
     l_maLoadedModel.m_bAnimated = false;
+    l_maLoadedModel.m_strName = p_pPath.filename();
 
     SAssetSlot<SModelAsset> l_asModel;
     l_asModel.alive = true;
@@ -264,7 +371,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
 
     ModelID l_id;
 
-    if (p_pPath.extension() == ".glb") {
+    if (p_pPath.extension() == ".glb" || p_pPath.extension() == ".gltf") {
 
       l_id = l_renderer->p_AnimatedModelManager->LoadAnimatedModel(p_strPath);
 
@@ -277,7 +384,7 @@ ModelHandle CAssetSystem::LoadModel(std::string p_strPath, bool p_bIsAnimated) {
     l_maLoadedModel.m_strPath = p_strPath;
     l_maLoadedModel.m_scIdShader = m_scidDefaultAnimatedModelShader;
     l_maLoadedModel.m_bAnimated = true;
-
+    l_maLoadedModel.m_strName = p_pPath.filename();
     SAssetSlot<SModelAsset> l_asModel;
     l_asModel.alive = true;
     l_asModel.asset = l_maLoadedModel;
@@ -781,13 +888,20 @@ void CAssetSystem::ClearAll() {
   for (auto &asset : m_vModelAssets) {
     if (!asset.alive)
       continue;
-    if (asset.asset.m_bAnimated) {
-      l_renderer->p_AnimatedModelManager->RemoveModel(asset.asset.m_modelID);
-    } else {
+
+    if (asset.asset.m_bIsBundled) {
+      // TODO: check if it needs fixing later;
       l_renderer->p_meshManager->EraseModel(asset.asset.m_modelID);
+
+    } else {
+
+      if (asset.asset.m_bAnimated) {
+        l_renderer->p_AnimatedModelManager->RemoveModel(asset.asset.m_modelID);
+      } else {
+        l_renderer->p_meshManager->EraseModel(asset.asset.m_modelID);
+      }
     }
   }
-
   for (auto &asset : m_vTextureAssets) {
     if (!asset.alive)
       continue;
@@ -855,7 +969,7 @@ void CAssetSystem::ReloadModel(ModelHandle p_Handle) {
 
     l_renderer->p_AnimatedModelManager->RemoveModel(l_maModel.asset.m_modelID);
 
-    if (l_fsPath.extension() == ".glb") {
+    if (l_fsPath.extension() == ".glb" || l_fsPath.extension() == ".gltf") {
       l_maModel.asset.m_modelID =
           l_renderer->p_AnimatedModelManager->LoadAnimatedModel(
               l_maModel.asset.m_strPath);
@@ -870,7 +984,7 @@ void CAssetSystem::ReloadModel(ModelHandle p_Handle) {
 
     l_renderer->p_meshManager->EraseModel(l_maModel.asset.m_modelID);
 
-    if (l_fsPath.extension() == ".glb") {
+    if (l_fsPath.extension() == ".glb" || l_fsPath.extension() == ".gltf") {
       l_maModel.asset.m_modelID =
           l_renderer->p_meshManager->LoadModel(l_maModel.asset.m_strPath);
     } else if (l_fsPath.extension() == ".hzmdl") {
@@ -1157,14 +1271,19 @@ void CAssetSystem::ValidateAndLoadSystem(CAssetSystem &other) {
     if (!model.alive)
       continue;
 
-    if (model.asset.m_bAnimated) {
-      if (!Renderer::p_AnimatedModelManager->isLoadedModel(
-              model.asset.m_strPath))
-        Renderer::p_AnimatedModelManager->LoadAnimatedModel(
-            model.asset.m_strPath);
+    if (!model.asset.m_bIsBundled) {
+      if (model.asset.m_bAnimated) {
+        if (!Renderer::p_AnimatedModelManager->isLoadedModel(
+                model.asset.m_strPath))
+          Renderer::p_AnimatedModelManager->LoadAnimatedModel(
+              model.asset.m_strPath);
+      } else {
+        if (!Renderer::p_meshManager->isLoadedModel(model.asset.m_strPath))
+          Renderer::p_meshManager->LoadModel(model.asset.m_strPath);
+      }
     } else {
-      if (!Renderer::p_meshManager->isLoadedModel(model.asset.m_strPath))
-        Renderer::p_meshManager->LoadModel(model.asset.m_strPath);
+      if (!Renderer::p_meshManager->isLoadedModelBundle(model.asset.m_strPath))
+        Renderer::p_meshManager->LoadModelSeperated(model.asset.m_strPath);
     }
   }
 
@@ -1499,6 +1618,42 @@ ScriptHandle CAssetSystem::GetScriptHandle(std::string p_strPath) {
     return m_umScriptHandles[p_strPath];
 
   return ScriptHandle();
+}
+std::string CAssetSystem::ExportMaterialSpecJSON(
+    const std::string &fileName, const std::string &albedoPath,
+    const std::string &normalPath, const std::string &prmPath,
+    const std::string &emissionPath, float luminance,
+    const std::filesystem::path &exportDirectory,
+    const std::filesystem::path &resourceRoot) {
+  namespace fs = std::filesystem;
+
+  boost::json::object obj;
+
+  auto writePath = [&](const char *key, const std::string &path) {
+    if (!path.empty()) {
+      fs::path fullPath = path;
+      fs::path relative = fs::relative(fullPath, resourceRoot);
+      obj[key] = relative.string();
+    } else {
+      obj[key] = nullptr;
+    }
+  };
+
+  writePath("albedo", albedoPath);
+  writePath("normal", normalPath);
+  writePath("PRM", prmPath);
+  writePath("emission", emissionPath);
+
+  obj["luminance"] = luminance;
+  obj["name"] = fileName;
+
+  fs::path outPath = exportDirectory / (fileName + ".json");
+
+  std::ofstream file(outPath);
+  file << boost::json::serialize(obj);
+  file.close();
+
+  return outPath.generic_string();
 }
 
 } // namespace eHaz

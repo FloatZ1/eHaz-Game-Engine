@@ -76,6 +76,7 @@ private:
     ar & m_bAnimated;
     ar & m_strPath;
     ar & m_bIsBundled;
+    ar & m_strName;
   }
 };
 

@@ -39,6 +39,9 @@ public:
     ComponentID component;
   };
 
+  ModelHandle m_mhErrorModel;
+  MaterialHandle m_mathMissingMat;
+
   CSM m_csmShadowMaps;
 
   // skybox settings
@@ -47,8 +50,8 @@ public:
   glm::vec3 m_v3BetaMie = glm::vec3(3.996f);
   glm::vec3 m_v3BetaOzone = glm::vec3(0.650f, 1.881f, 0.085f);
 
-  float m_fLightExposure = 10.0f;
-  float m_fSolarBrightness = 10.0f;
+  float m_fLightExposure = 100000.0f;
+  float m_fSolarBrightness = 100000.0f;
 
   glm::vec3 m_v3SunDirection = glm::normalize(glm::vec3(0.0f, 0.1f, -1.0f));
 
@@ -214,6 +217,13 @@ public:
       scene_graph.nodes[objectID]->AddComponentFlag(HashToID[m_type.id()]);
 
       m_registry.emplace<T>(entity, std::forward<Args>(args)...);
+
+      if (HashToID[m_type.id()] == ComponentID::Model) {
+
+        auto &mComp = GetComponent<ModelComponent>(objectID);
+        mComp.materialHandle = m_mathMissingMat;
+        mComp.m_Handle = m_mhErrorModel;
+      }
     }
   }
 
@@ -246,7 +256,7 @@ public:
       } break;
       case PendingAction::Create: {
         int child = AddGameObject(act.newName, act.nodeID);
-        scene_graph.nodes[act.nodeID]->children.push_back(child);
+        // scene_graph.nodes[act.nodeID]->children.push_back(child);
       } break;
       case PendingAction::Rename: {
 
@@ -333,21 +343,28 @@ private:
     ar & sceneName;
     ar & m_strScenePath;
     ar & m_uiActiveCameraObjectID;
-
     ar & m_v3BetaRayleigh;
     ar & m_v3BetaMie;
     ar & m_v3BetaOzone;
-
     ar & m_fLightExposure;
     ar & m_fSolarBrightness;
-
     ar & m_v3SunDirection;
-
     ar & m_fRayLeighScale;
     ar & m_fMieScale;
     ar & m_fSunScale;
-
     ar & m_v3SunColor;
+    ar & m_mhErrorModel;
+    ar & m_mathMissingMat;
+    ar & m_mhSkyModelTop;
+    ar & m_mhSkyModelSide1;
+    ar & m_mhSkyModelSide2;
+    ar & m_mathSkyModelTop;
+    ar & m_mathSkyModelSide1;
+    ar & m_mathSkyModelSide2;
+    ar & m_fSkyModelSize;
+    ar & m_strDefaultSkyModelTop_Path;
+    ar & m_strDefaultSkyModelSide1_Path;
+    ar & m_strDefaultSkyModelSide2_Path;
   }
 
   std::vector<PendingAction> pendingActions;

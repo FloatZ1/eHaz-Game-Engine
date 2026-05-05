@@ -1,7 +1,1 @@
-{
-    "vertex": "shader.vert",
-    "fragment": "shader.frag",
-    "geometry": null,
-    "compute": null,
-    "pipeline_flags": null
-}
+{"vertex":"shader.vert","fragment":"shader.frag","geometry":null,"compute":null,"pipeline_flags":["CULL_FACE_ENABLED"]}

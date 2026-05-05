@@ -711,18 +711,34 @@ void SceneOptionsMenu(bool *open, uint32_t selectedNode,
               (l_mhSelectedHandle.index == i &&
                l_mhSelectedHandle.generation == l_asModel.generation);
 
-          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
-                                    .filename()
-                                    .c_str(),
-                                isSelected)) {
-            l_mhSelectedHandle.index = i;
-            l_mhSelectedHandle.generation = l_asModel.generation;
+          if (!l_asModel.asset.m_bIsBundled) {
 
-            // Update the component with the selected handle
-            scene.m_mhSkyModelTop = l_mhSelectedHandle;
-            //  node->m_bUbdateOctree = true;
-            // Close popup immediately after selection
-            ImGui::CloseCurrentPopup();
+            if (ImGui::Selectable(
+                    std::filesystem::path(l_asModel.asset.m_strPath)
+                        .filename()
+                        .c_str(),
+                    isSelected)) {
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              // Update the component with the selected handle
+              scene.m_mhSkyModelTop = l_mhSelectedHandle;
+              //  node->m_bUbdateOctree = true;
+              // Close popup immediately after selection
+              ImGui::CloseCurrentPopup();
+            }
+          } else {
+
+            if (ImGui::Selectable(l_asModel.asset.m_strName.c_str(),
+                                  isSelected)) {
+
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              scene.m_mhSkyModelTop = l_mhSelectedHandle;
+
+              ImGui::CloseCurrentPopup();
+            }
           }
 
           if (isSelected)
@@ -761,18 +777,34 @@ void SceneOptionsMenu(bool *open, uint32_t selectedNode,
               (l_mhSelectedHandle1.index == i &&
                l_mhSelectedHandle1.generation == l_asModel.generation);
 
-          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
-                                    .filename()
-                                    .c_str(),
-                                isSelected)) {
-            l_mhSelectedHandle1.index = i;
-            l_mhSelectedHandle1.generation = l_asModel.generation;
+          if (!l_asModel.asset.m_bIsBundled) {
 
-            // Update the component with the selected handle
-            scene.m_mhSkyModelSide1 = l_mhSelectedHandle1;
-            //  node->m_bUbdateOctree = true;
-            // Close popup immediately after selection
-            ImGui::CloseCurrentPopup();
+            if (ImGui::Selectable(
+                    std::filesystem::path(l_asModel.asset.m_strPath)
+                        .filename()
+                        .c_str(),
+                    isSelected)) {
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              // Update the component with the selected handle
+              scene.m_mhSkyModelSide1 = l_mhSelectedHandle;
+              //  node->m_bUbdateOctree = true;
+              // Close popup immediately after selection
+              ImGui::CloseCurrentPopup();
+            }
+          } else {
+
+            if (ImGui::Selectable(l_asModel.asset.m_strName.c_str(),
+                                  isSelected)) {
+
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              scene.m_mhSkyModelSide1 = l_mhSelectedHandle;
+
+              ImGui::CloseCurrentPopup();
+            }
           }
 
           if (isSelected)
@@ -812,18 +844,34 @@ void SceneOptionsMenu(bool *open, uint32_t selectedNode,
               (l_mhSelectedHandle2.index == i &&
                l_mhSelectedHandle2.generation == l_asModel.generation);
 
-          if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
-                                    .filename()
-                                    .c_str(),
-                                isSelected)) {
-            l_mhSelectedHandle2.index = i;
-            l_mhSelectedHandle2.generation = l_asModel.generation;
+          if (!l_asModel.asset.m_bIsBundled) {
 
-            // Update the component with the selected handle
-            scene.m_mhSkyModelSide2 = l_mhSelectedHandle2;
-            //  node->m_bUbdateOctree = true;
-            // Close popup immediately after selection
-            ImGui::CloseCurrentPopup();
+            if (ImGui::Selectable(
+                    std::filesystem::path(l_asModel.asset.m_strPath)
+                        .filename()
+                        .c_str(),
+                    isSelected)) {
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              // Update the component with the selected handle
+              scene.m_mhSkyModelSide2 = l_mhSelectedHandle;
+              //  node->m_bUbdateOctree = true;
+              // Close popup immediately after selection
+              ImGui::CloseCurrentPopup();
+            }
+          } else {
+
+            if (ImGui::Selectable(l_asModel.asset.m_strName.c_str(),
+                                  isSelected)) {
+
+              l_mhSelectedHandle.index = i;
+              l_mhSelectedHandle.generation = l_asModel.generation;
+
+              scene.m_mhSkyModelSide2 = l_mhSelectedHandle;
+
+              ImGui::CloseCurrentPopup();
+            }
           }
 
           if (isSelected)
@@ -1990,37 +2038,31 @@ void DrawModelComponentMenu(uint32_t selectedNode,
   CAssetSystem &l_asAssetSystem =
       eHaz_Core::Application::instance->GetAssetSystem();
 
-  // Model choice
-  const SModelAsset *l_modelAsset =
-      l_asAssetSystem.GetModel(l_mcModelComponent.m_Handle);
-
   auto &l_vModels = l_asAssetSystem.GetAllModels();
-
-  ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
-
-  // Material choice
-
-  const SMaterialAsset *l_maaMaterial =
-      l_asAssetSystem.GetMaterial(l_mcModelComponent.materialHandle);
-
   auto &l_vMaterials = l_asAssetSystem.GetAllMaterials();
-
   auto &l_vShaders = l_asAssetSystem.GetAllShaders();
 
+  ModelHandle l_mhSelectedHandle = l_mcModelComponent.m_Handle;
   MaterialHandle l_mathSelectedHandle = l_mcModelComponent.materialHandle;
-
   ShaderHandle l_shSelectedHandle = l_mcModelComponent.m_ShaderHandle;
 
   if (ImGui::CollapsingHeader("Model")) {
     ImGui::SeparatorText("");
-    // Button that opens the popup
-    if (ImGui::Button("Select Model")) {
-      ImGui::OpenPopup("ModelSelectionPopup");
+
+    // ===================== MODEL =====================
+    std::string l_currentModelName = "None";
+
+    if (l_asAssetSystem.isValidModel(l_mhSelectedHandle)) {
+      auto *mdl = l_asAssetSystem.GetModel(l_mhSelectedHandle);
+
+      if (!mdl->m_bIsBundled)
+        l_currentModelName =
+            std::filesystem::path(mdl->m_strPath).filename().string();
+      else
+        l_currentModelName = mdl->m_strName;
     }
 
-    // The popup itself
-    if (ImGui::BeginPopup("ModelSelectionPopup")) {
-
+    if (ImGui::BeginCombo("Model##select ", l_currentModelName.c_str())) {
       for (size_t i = 0; i < l_vModels.size(); ++i) {
         auto &l_asModel = l_vModels[i];
         if (!l_asModel.alive)
@@ -2030,49 +2072,41 @@ void DrawModelComponentMenu(uint32_t selectedNode,
             (l_mhSelectedHandle.index == i &&
              l_mhSelectedHandle.generation == l_asModel.generation);
 
-        if (ImGui::Selectable(std::filesystem::path(l_asModel.asset.m_strPath)
-                                  .filename()
-                                  .c_str(),
-                              isSelected)) {
+        std::string l_name =
+            (!l_asModel.asset.m_bIsBundled)
+                ? std::filesystem::path(l_asModel.asset.m_strPath)
+                      .filename()
+                      .string()
+                : l_asModel.asset.m_strName;
+
+        if (ImGui::Selectable(l_name.c_str(), isSelected)) {
           l_mhSelectedHandle.index = i;
           l_mhSelectedHandle.generation = l_asModel.generation;
 
-          // Update the component with the selected handle
           l_mcModelComponent.m_Handle = l_mhSelectedHandle;
           node->m_bUbdateOctree = true;
-          // Close popup immediately after selection
-          ImGui::CloseCurrentPopup();
         }
 
         if (isSelected)
           ImGui::SetItemDefaultFocus();
       }
-
-      ImGui::EndPopup();
+      ImGui::EndCombo();
     }
 
-    // Show currently selected model
-    if (l_asAssetSystem.isValidModel(l_mhSelectedHandle)) {
-      ImGui::Text("Current: %s",
-                  std::filesystem::path(
-                      l_asAssetSystem.GetModel(l_mhSelectedHandle)->m_strPath)
-                      .filename()
-                      .c_str());
-    } else {
-      ImGui::Text("Current: None");
-    }
-    // shader field
+    // ===================== SHADER =====================
+    std::string l_currentShaderName = "None";
 
-    if (ImGui::Button("Select Shader programe")) {
-      ImGui::OpenPopup("ModelShaderPopup");
+    if (l_asAssetSystem.isValidShader(l_shSelectedHandle)) {
+      l_currentShaderName =
+          std::filesystem::path(
+              l_asAssetSystem.GetShader(l_shSelectedHandle)->m_strSpecPath)
+              .filename()
+              .string();
     }
 
-    if (ImGui::BeginPopup("ModelShaderPopup")) {
-
+    if (ImGui::BeginCombo("Shader Program", l_currentShaderName.c_str())) {
       for (size_t i = 0; i < l_vShaders.size(); ++i) {
-
         auto &l_asShader = l_vShaders[i];
-
         if (!l_asShader.alive)
           continue;
 
@@ -2080,44 +2114,38 @@ void DrawModelComponentMenu(uint32_t selectedNode,
             (l_shSelectedHandle.index == i &&
              l_shSelectedHandle.generation == l_asShader.generation);
 
-        if (ImGui::Selectable(
-                std::filesystem::path(l_asShader.asset.m_strSpecPath)
-                    .filename()
-                    .c_str(),
-                isSelected)) {
+        std::string l_name =
+            std::filesystem::path(l_asShader.asset.m_strSpecPath)
+                .filename()
+                .string();
+
+        if (ImGui::Selectable(l_name.c_str(), isSelected)) {
           l_shSelectedHandle.index = i;
           l_shSelectedHandle.generation = l_asShader.generation;
 
           l_mcModelComponent.m_ShaderHandle = l_shSelectedHandle;
-
-          ImGui::CloseCurrentPopup();
         }
 
         if (isSelected)
           ImGui::SetItemDefaultFocus();
       }
-      ImGui::EndPopup();
+      ImGui::EndCombo();
     }
-    if (l_asAssetSystem.isValidShader(l_shSelectedHandle)) {
-      ImGui::Text(
-          "Current shader: %s",
+
+    // ===================== MATERIAL =====================
+    std::string l_currentMaterialName = "None";
+
+    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandle)) {
+      l_currentMaterialName =
           std::filesystem::path(
-              l_asAssetSystem.GetShader(l_shSelectedHandle)->m_strSpecPath)
+              l_asAssetSystem.GetMaterial(l_mathSelectedHandle)->m_strPath)
               .filename()
-              .c_str());
-    } else {
-      ImGui::Text("Current Shader: None");
+              .string();
     }
-    // material field
 
-    if (ImGui::Button("Select Material")) {
-      ImGui::OpenPopup("ModelMaterialPopup");
-    }
-    if (ImGui::BeginPopup("ModelMaterialPopup")) {
-
+    if (ImGui::BeginCombo("Material", l_currentMaterialName.c_str())) {
       for (size_t i = 0; i < l_vMaterials.size(); ++i) {
         auto &l_asMaterial = l_vMaterials[i];
-
         if (!l_asMaterial.alive)
           continue;
 
@@ -2125,44 +2153,31 @@ void DrawModelComponentMenu(uint32_t selectedNode,
             (l_mathSelectedHandle.index == i &&
              l_mathSelectedHandle.generation == l_asMaterial.generation);
 
-        if (ImGui::Selectable(
-                std::filesystem::path(l_asMaterial.asset.m_strPath)
-                    .filename()
-                    .c_str(),
-                isSelected)) {
+        std::string l_name = std::filesystem::path(l_asMaterial.asset.m_strPath)
+                                 .filename()
+                                 .string();
+
+        if (ImGui::Selectable(l_name.c_str(), isSelected)) {
           l_mathSelectedHandle.index = i;
           l_mathSelectedHandle.generation = l_asMaterial.generation;
 
           l_mcModelComponent.materialHandle = l_mathSelectedHandle;
-
-          ImGui::CloseCurrentPopup();
         }
+
         if (isSelected)
           ImGui::SetItemDefaultFocus();
       }
-      ImGui::EndPopup();
-    }
-    if (l_asAssetSystem.isValidMaterial(l_mathSelectedHandle)) {
-      ImGui::Text(
-          "Current material: %s",
-          std::filesystem::path(
-              l_asAssetSystem.GetMaterial(l_mathSelectedHandle)->m_strPath)
-              .filename()
-              .c_str());
-    } else {
-      ImGui::Text("Current material: None");
+      ImGui::EndCombo();
     }
 
     ImGui::Separator();
-    if (ImGui::Button("Remove Component ##model")) {
 
+    if (ImGui::Button("Remove Component ##model")) {
       Scene::PendingAction a;
       a.component = ComponentID::Model;
       a.nodeID = selectedNode;
       a.type = a.DeleteComponent;
-
       scene.QueueAction(a);
-      ;
     }
   }
 }
