@@ -586,6 +586,15 @@ void SceneOptionsMenu(bool *open, uint32_t selectedNode,
 
     // --- Content Area ---
     ImGui::InputText("Scene Name", &currentScene.sceneName);
+    std::string l_strCurrentGI_path = currentScene.m_strGI_Probe_Path;
+    if (ImGui::Button("Select GI probe JSON file")) {
+
+      OpenNativeFileDialog(false, [&](const std::string &fullPath) {
+        l_strCurrentGI_path = fullPath;
+        currentScene.m_strGI_Probe_Path = fullPath;
+      });
+    }
+    ImGui::Text("Current GI path: %s", l_strCurrentGI_path.c_str());
 
     ImGui::Separator();
 
@@ -1111,6 +1120,14 @@ void DebugOptionsWindow(bool *open) {
 
       eHaz_Core::Application::instance->SetDebugDrawingOctreeStatus(
           s_bDrawDebugOctree);
+    }
+
+    static bool s_bDrawDebugGI =
+        eHaz_Core::Application::instance->GetGI_DebugDrawStatus();
+
+    if (ImGui::Checkbox("GI debug", &s_bDrawDebugGI)) {
+
+      eHaz_Core::Application::instance->SetGI_DebugDrawStatus(s_bDrawDebugGI);
     }
 
     if (ImGui::Button("Close", ImVec2(80.0f, 0))) {

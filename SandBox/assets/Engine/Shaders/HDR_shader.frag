@@ -19,6 +19,8 @@ uniform float u_CascadeEnds[4];
 uniform sampler2DArrayShadow u_ShadowMap;
 uniform vec3 u_AmbientSky = vec3(0.08, 0.12, 0.18);
 
+uniform int numProbes;
+
 struct VP {
     mat4 view;
     mat4 projection;
@@ -31,6 +33,14 @@ struct SLight {
     vec4 direction_type;
     vec4 cone;
 };
+
+struct ProbeGPU {
+    vec4 position; // xyz = pos, w = radius
+    vec4 shR[3];
+    vec4 shG[3];
+    vec4 shB[3];
+};
+
 layout(std430, binding = 5) readonly buffer ssbo5 {
     VP camMats;
 };
@@ -38,6 +48,66 @@ layout(std430, binding = 5) readonly buffer ssbo5 {
 layout(std430, binding = 6) readonly buffer ssbo6 {
     SLight g_Lights[];
 };
+
+layout(std430, binding = 11) readonly buffer ssbo11 {
+    ProbeGPU g_Probes[];
+};
+
+vec3 EvalSH9(ProbeGPU probe, vec3 n) {
+    // Remap from OpenGL (Y-up, Z-back) to Blender (Z-up, Y-forward)
+    vec3 bn = vec3(n.x, n.z, n.y);
+
+    float r = probe.shR[0].x * 0.282095
+            + probe.shR[0].y * 0.488603 * bn.y
+            + probe.shR[0].z * 0.488603 * bn.z
+            + probe.shR[1].x * 0.488603 * bn.x
+            + probe.shR[1].y * 1.092548 * bn.x * bn.y
+            + probe.shR[1].z * 1.092548 * bn.y * bn.z
+            + probe.shR[2].x * 0.315392 * (3.0 * bn.z * bn.z - 1.0)
+            + probe.shR[2].y * 1.092548 * bn.x * bn.z
+            + probe.shR[2].z * 0.546274 * (bn.x * bn.x - bn.y * bn.y);
+
+    float g = probe.shG[0].x * 0.282095
+            + probe.shG[0].y * 0.488603 * bn.y
+            + probe.shG[0].z * 0.488603 * bn.z
+            + probe.shG[1].x * 0.488603 * bn.x
+            + probe.shG[1].y * 1.092548 * bn.x * bn.y
+            + probe.shG[1].z * 1.092548 * bn.y * bn.z
+            + probe.shG[2].x * 0.315392 * (3.0 * bn.z * bn.z - 1.0)
+            + probe.shG[2].y * 1.092548 * bn.x * bn.z
+            + probe.shG[2].z * 0.546274 * (bn.x * bn.x - bn.y * bn.y);
+
+    float b = probe.shB[0].x * 0.282095
+            + probe.shB[0].y * 0.488603 * bn.y
+            + probe.shB[0].z * 0.488603 * bn.z
+            + probe.shB[1].x * 0.488603 * bn.x
+            + probe.shB[1].y * 1.092548 * bn.x * bn.y
+            + probe.shB[1].z * 1.092548 * bn.y * bn.z
+            + probe.shB[2].x * 0.315392 * (3.0 * bn.z * bn.z - 1.0)
+            + probe.shB[2].y * 1.092548 * bn.x * bn.z
+            + probe.shB[2].z * 0.546274 * (bn.x * bn.x - bn.y * bn.y);
+
+    return max(vec3(r, g, b), vec3(0.0));
+}
+
+vec3 SampleProbes(vec3 worldPos, vec3 N) {
+    vec3 totalIrradiance = vec3(0.0);
+    float totalWeight = 0.0;
+
+    for (int i = 0; i < numProbes; i++) {
+        vec3 delta = worldPos - g_Probes[i].position.xyz;
+        float dist = length(delta);
+        float radius = g_Probes[i].position.w > 0.0 ? g_Probes[i].position.w : 1e9;
+        if (dist > radius) continue;
+
+        float weight = 1.0 / (dist * dist + 1.0);
+        totalIrradiance += EvalSH9(g_Probes[i], N) * weight;
+        totalWeight += weight;
+    }
+
+    if (totalWeight < 0.0001) return u_AmbientSky;
+    return totalIrradiance / totalWeight;
+}
 
 int GetCascadeIndex(float depth)
 {
@@ -241,7 +311,9 @@ void main()
         totalLighting += BRDF_Cook_Torance(F0, dotNV, dotNL, dotNH, dotVH, albedo, roughness, metallic) * dotNL * radiance * shadow;
     }
 
-    vec3 ambient = albedo * u_AmbientSky;
+    // vec3 ambient = albedo * u_AmbientSky;
+    vec3 probeIrradiance = SampleProbes(worldPos, N);
+    vec3 ambient = albedo * max(probeIrradiance, u_AmbientSky);
     vec3 finalColor = totalLighting + (emission) + ambient;
 
     // Basic HDR test output
@@ -249,6 +321,6 @@ void main()
 
     //gamma correction
     // hdrColor = pow(hdrColor, vec3(1.0 / 2.2));
-
-    FragColor = vec4(hdrColor, 1.0);
+    FragColor = vec4(SampleProbes(worldPos, N) * 1.0, 1.0);
+    // FragColor = vec4(hdrColor, 1.0);
 }

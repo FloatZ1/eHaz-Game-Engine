@@ -73,6 +73,11 @@ public:
   void SetDebugDrawingOctreeStatus(bool p_bStatus) {
     m_bDebugDrawOctree = p_bStatus;
   }
+
+  bool GetGI_DebugDrawStatus() { return m_bVisualizeGIprobes; }
+
+  void SetGI_DebugDrawStatus(bool state) { m_bVisualizeGIprobes = state; }
+
   bool EditorModeEnabled() { return m_bEditorMode; }
 
   void Run();
@@ -86,6 +91,8 @@ private:
   bool m_bDebugDrawing = false;
 
   bool m_bDebugDrawOctree = false;
+
+  bool m_bVisualizeGIprobes = false;
 
   bool m_bUseDefferedShading = false;
 

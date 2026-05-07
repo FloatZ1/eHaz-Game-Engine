@@ -5,6 +5,7 @@
 #include "Components.hpp"
 #include "Core/AssetSystem/Asset.hpp"
 #include "DataStructs.hpp"
+#include "GI_Manager.hpp"
 #include "GameObject.hpp"
 #include "Octree.hpp"
 #include "Renderer.hpp"
@@ -38,6 +39,9 @@ public:
 
     ComponentID component;
   };
+
+  C_GI_manager m_GI_Probe_manager;
+  std::string m_strGI_Probe_Path = "";
 
   ModelHandle m_mhErrorModel;
   MaterialHandle m_mathMissingMat;
@@ -365,6 +369,7 @@ private:
     ar & m_strDefaultSkyModelTop_Path;
     ar & m_strDefaultSkyModelSide1_Path;
     ar & m_strDefaultSkyModelSide2_Path;
+    ar & m_strGI_Probe_Path;
   }
 
   std::vector<PendingAction> pendingActions;

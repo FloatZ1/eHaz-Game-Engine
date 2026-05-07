@@ -197,6 +197,13 @@ CalculateFrustumCorners(const CameraComponent &camera,
   return corners;
 }
 
+struct Probe {
+  glm::vec3 position;
+  float radius = 0.0f; // optional (use 0 or a default if you don’t need it)
+
+  glm::vec3 sh[9]; // 9 coeffs, RGB each
+};
+
 } // namespace eHaz
 
 #endif

@@ -110,7 +110,9 @@ void Application::RenderFrame() {
 
       layerStack.RenderLayers();
       if (m_bDebugDrawing) {
-
+        if (m_bVisualizeGIprobes) {
+          currentScene.m_GI_Probe_manager.DrawProbeLocations();
+        }
         if (m_bDebugDrawOctree) {
           currentScene.VisualizeObjectVisibleBounds();
         }
@@ -136,6 +138,13 @@ void Application::RenderFrame() {
 
       if (m_bDebugDrawing) {
 
+        if (m_bVisualizeGIprobes) {
+          currentScene.m_GI_Probe_manager.DrawProbeLocations();
+        }
+
+        if (m_bDebugDrawOctree) {
+          currentScene.VisualizeObjectVisibleBounds();
+        }
         physics_engine.DrawDebug(m_dsSetting);
 
         renderer.DrawDebug();

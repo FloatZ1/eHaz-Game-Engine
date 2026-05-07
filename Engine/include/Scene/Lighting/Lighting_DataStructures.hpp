@@ -12,6 +12,14 @@ struct SGpuLight {
   glm::vec4 cone;            // inner, outer, unused, unused
 };
 
+struct alignas(16) ProbeGPU {
+  glm::vec4 position; // xyz = pos, w = radius
+
+  glm::vec4 shR[3]; // 9 coeffs packed
+  glm::vec4 shG[3];
+  glm::vec4 shB[3];
+};
+
 } // namespace eHaz
 
 #endif

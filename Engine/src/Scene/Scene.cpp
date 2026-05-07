@@ -23,6 +23,7 @@
 
 #include <Lighting/Lighting_DataStructures.hpp>
 
+#include <SDL3/SDL_log.h>
 #include <array>
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
@@ -600,6 +601,7 @@ void Scene::SaveSceneToDisk(std::string p_strExportPath) {
   ar & m_strDefaultSkyModelTop_Path;
   ar & m_strDefaultSkyModelSide1_Path;
   ar & m_strDefaultSkyModelSide2_Path;
+  ar & m_strGI_Probe_Path;
 
   CAssetSystem loadedAssets = *CAssetSystem::m_pInstance;
   ar & loadedAssets;
@@ -673,6 +675,8 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     ar & m_strDefaultSkyModelSide1_Path;
     ar & m_strDefaultSkyModelSide2_Path;
 
+    ar & m_strGI_Probe_Path;
+
     CAssetSystem loadedAssets(true);
     ar & loadedAssets;
     // ar & m_uiActiveCameraObjectID;
@@ -721,6 +725,27 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
     }
 
     PhysicsEngine::s_Instance->ProcessQueues(*this);
+
+    if (m_strGI_Probe_Path != "") {
+      m_GI_Probe_manager.LoadProbeData(m_strGI_Probe_Path);
+
+      Renderer::r_instance->p_bufferManager->ClearBuffer(
+          TypeFlags::BUFFER_GI_PROBE_DATA);
+
+      Renderer::r_instance->m_uiNumGI_probes =
+          m_GI_Probe_manager.GetProcessedData().size();
+      auto &probes = m_GI_Probe_manager.GetProcessedData();
+
+      Renderer::r_instance->p_bufferManager->InsertNewDynamicData(
+          probes.data(), sizeof(ProbeGPU) * probes.size(),
+          TypeFlags::BUFFER_GI_PROBE_DATA);
+
+    } else {
+      SDL_Log("WARNING: GI probes arent loaded, please make sure a path is "
+              "provided. You can create probes in blender with the script in "
+              "the repo");
+      Renderer::r_instance->m_uiNumGI_probes = 0;
+    }
 
     return true;
   } catch (std::exception &e) {
