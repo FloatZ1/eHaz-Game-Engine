@@ -56,6 +56,8 @@ public:
   bool isValidTexture(TextureHandle p_Handle);
   bool isValidShader(ShaderHandle p_Handle);
 
+  bool isValidAnimation(AnimationHandle p_Handle);
+
   bool isValidScript(ScriptHandle p_Handle);
 
   bool isValidConvexHull(ConvexHullHandle p_Handle);
@@ -68,6 +70,8 @@ public:
   const SShaderAsset *GetShader(ShaderHandle p_Handle);
   SScriptAsset *GetScript(ScriptHandle p_Handle);
 
+  const SAnimationAsset *GetAnimation(AnimationHandle p_Handle);
+
   const SConvexHullAsset *GetConvexHull(ConvexHullHandle p_Handle);
   const SCollisionMeshAsset *GetCollisionMesh(CollisionMeshHandle p_Handle);
 
@@ -77,6 +81,8 @@ public:
   void RemoveMaterial(MaterialHandle p_Handle);
   void RemoveTexture(TextureHandle p_Handle);
   void RemoveShader(ShaderHandle p_Handle);
+
+  void RemoveAnimation(AnimationHandle p_Handle); // TODO: IMPLEMENT
 
   void RemoveConvexHull(ConvexHullHandle p_Handle);
   void RemoveCollisionMesh(CollisionMeshHandle p_Handle);
@@ -89,6 +95,8 @@ public:
   void ReloadTexture(TextureHandle p_Handle);
   void ReloadMaterial(MaterialHandle p_Handle);
   void ReloadShader(ShaderHandle p_Handle);
+
+  void ReloadAnimation(AnimationHandle p_Handle); // TODO: IMPLEMENT
 
   void ReloadConvexHull(ConvexHullHandle p_Handle);
   void ReloadCollisionMesh(CollisionMeshHandle p_Handle);
@@ -109,6 +117,9 @@ public:
   const std::vector<SAssetSlot<SCollisionMeshAsset>> &
   GetAllCollisionMeshes() const;
 
+  const std::vector<SAssetSlot<SAnimationAsset>>
+  GetAllAnimations() const; // TODO: IMPLEMENT
+
   const std::vector<SAssetSlot<SScriptAsset>> &GetAllScripts() const;
 
   ModelHandle GetModelHandle(std::string p_strPath);
@@ -118,6 +129,8 @@ public:
   TextureHandle GetTextureHandle(std::string p_strPath);
 
   ShaderHandle GetShaderHandle(std::string p_strPath);
+
+  AnimationHandle GetAnimationHandle(std::string p_strPath); // TODO: IMPLEMENT
 
   ConvexHullHandle GetConvexHullHandle(std::string p_strPath);
   CollisionMeshHandle GetCollisionMeshHandle(std::string p_strPath);
@@ -187,6 +200,8 @@ private:
 
   std::vector<SAssetSlot<SScriptAsset>> m_vScriptAssets;
 
+  std::vector<SAssetSlot<SAnimationAsset>> m_vAnimationAssets;
+
   std::vector<uint32_t> m_freeModelSlots;
   std::vector<uint32_t> m_freeMaterialSlots;
   std::vector<uint32_t> m_freeTextureSlots;
@@ -196,6 +211,8 @@ private:
   std::vector<uint32_t> m_freeCollsionMeshSlots;
 
   std::vector<uint32_t> m_freeScriptSlots;
+
+  std::vector<uint32_t> m_freeAnimationSlots;
 
   std::unordered_map<std::string, ModelHandle> m_umModelHandles;
 
@@ -207,6 +224,8 @@ private:
   std::unordered_map<std::string, CollisionMeshHandle> m_umCollsionMeshHandles;
 
   std::unordered_map<std::string, ScriptHandle> m_umScriptHandles;
+
+  std::unordered_map<std::string, AnimationHandle> m_umAnimationHandles;
 
   template <class Archive>
   void serialize(Archive &ar, const unsigned int version) {
@@ -243,6 +262,10 @@ private:
     ar & m_umScriptHandles;
     ar & m_vScriptAssets;
     ar & m_freeScriptSlots;
+
+    ar & m_vAnimationAssets;
+    ar & m_freeAnimationSlots;
+    ar & m_umAnimationHandles;
   }
 };
 

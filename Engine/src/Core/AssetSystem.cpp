@@ -110,6 +110,17 @@ bool CAssetSystem::ShaderChanged(SShaderAsset &asset) {
 
   return false;
 }
+bool CAssetSystem::isValidAnimation(AnimationHandle p_Handle) {
+  if (p_Handle.index >= m_vAnimationAssets.size())
+    return false;
+
+  SAssetSlot<SAnimationAsset> &l_aaAsset = m_vAnimationAssets[p_Handle.index];
+
+  if (l_aaAsset.generation == p_Handle.generation && l_aaAsset.alive == true)
+    return true;
+  else
+    return false;
+}
 bool CAssetSystem::isValidConvexHull(ConvexHullHandle p_Handle) {
   if (p_Handle.index >= m_vConvexHullAssets.size())
     return false;
@@ -132,6 +143,12 @@ bool CAssetSystem::isValidCollisionMesh(CollisionMeshHandle p_Handle) {
     return true;
   else
     return false;
+}
+const SAnimationAsset *CAssetSystem::GetAnimation(AnimationHandle p_Handle) {
+  if (isValidAnimation(p_Handle))
+    return &m_vAnimationAssets[p_Handle.index].asset;
+  else
+    return nullptr;
 }
 const SConvexHullAsset *CAssetSystem::GetConvexHull(ConvexHullHandle p_Handle) {
   if (isValidConvexHull(p_Handle))
@@ -782,6 +799,19 @@ const SShaderAsset *CAssetSystem::GetShader(ShaderHandle p_Handle) {
     return nullptr;
 }
 
+void CAssetSystem::RemoveAnimation(AnimationHandle p_Handle)
+{
+    if(isValidAnimation(p_Handle)){
+        m_freeAnimationSlots.push_back(p_Handle.index);
+        m_vAnimationAssets[p_Handle.index].alive = false;
+
+
+    auto &l_renderer = eHazGraphics::Renderer::r_instance;
+
+        l_renderer->p_AnimatedModelManager->
+
+    }
+}
 void CAssetSystem::RemoveConvexHull(ConvexHullHandle p_Handle) {
   if (isValidConvexHull(p_Handle)) {
     m_freeConvexHullSlots.push_back(p_Handle.index);

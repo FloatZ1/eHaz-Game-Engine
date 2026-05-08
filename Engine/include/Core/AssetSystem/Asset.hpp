@@ -56,6 +56,20 @@ private:
   }
 };
 
+struct SAnimationAsset {
+  eHazGraphics::AnimationID m_aidAnimationID;
+  std::string m_strPath;
+
+private:
+  friend class boost::serialization::access;
+
+  template <class Archive>
+  void serialize(Archive &ar, const unsigned int version) {
+    ar & m_aidAnimationID;
+    ar & m_strPath;
+  }
+};
+
 struct SModelAsset {
 
   eHazGraphics::ModelID m_modelID;
@@ -235,6 +249,7 @@ using ShaderHandle = SAssetHandle;
 using ConvexHullHandle = SAssetHandle;
 using CollisionMeshHandle = SAssetHandle;
 using ScriptHandle = SAssetHandle;
+using AnimationHandle = SAssetHandle;
 
 } // namespace eHaz
 
