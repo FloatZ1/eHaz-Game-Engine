@@ -21,6 +21,10 @@ uniform vec3 u_AmbientSky = vec3(0.08, 0.12, 0.18);
 
 uniform int numProbes;
 
+uniform int numGrids;
+
+uniform float u_GIIntensity = 500.0;
+
 struct VP {
     mat4 view;
     mat4 projection;
@@ -41,6 +45,12 @@ struct ProbeGPU {
     vec4 shB[3];
 };
 
+struct ProbeGridGPU {
+    vec4 boundsMin;
+    vec4 boundsMax;
+    ivec4 resolution; // xyz = res, w = probeStartIndex
+};
+
 layout(std430, binding = 5) readonly buffer ssbo5 {
     VP camMats;
 };
@@ -51,6 +61,10 @@ layout(std430, binding = 6) readonly buffer ssbo6 {
 
 layout(std430, binding = 11) readonly buffer ssbo11 {
     ProbeGPU g_Probes[];
+};
+
+layout(std430, binding = 12) readonly buffer ssbo12 {
+    ProbeGridGPU g_Grids[];
 };
 
 vec3 EvalSH9(ProbeGPU probe, vec3 n) {
@@ -90,23 +104,82 @@ vec3 EvalSH9(ProbeGPU probe, vec3 n) {
     return max(vec3(r, g, b), vec3(0.0));
 }
 
+vec3 SampleGridTrilinear(ProbeGridGPU grid, vec3 worldPos, vec3 N) {
+    vec3 bmin = grid.boundsMin.xyz;
+    vec3 bmax = grid.boundsMax.xyz;
+    int rx = grid.resolution.x;
+    int ry = grid.resolution.y;
+    int rz = grid.resolution.z;
+    int startIdx = grid.resolution.w;
+
+    vec3 t = clamp((worldPos - bmin) / (bmax - bmin), 0.0, 1.0);
+
+    float cx = t.x * float(rx - 1);
+    float cy = t.y * float(ry - 1);
+    float cz = t.z * float(rz - 1);
+
+    int x0 = clamp(int(floor(cx)), 0, rx - 2);
+    int y0 = clamp(int(floor(cy)), 0, ry - 2);
+    int z0 = clamp(int(floor(cz)), 0, rz - 2);
+    int x1 = x0 + 1;
+    int y1 = y0 + 1;
+    int z1 = z0 + 1;
+
+    vec3 f = vec3(cx - float(x0), cy - float(y0), cz - float(z0));
+
+    #define PIDX(ix,iy,iz) (startIdx + (iz)*ry*rx + (iy)*rx + (ix))
+
+    vec3 c000 = EvalSH9(g_Probes[PIDX(x0, y0, z0)], N);
+    vec3 c100 = EvalSH9(g_Probes[PIDX(x1, y0, z0)], N);
+    vec3 c010 = EvalSH9(g_Probes[PIDX(x0, y1, z0)], N);
+    vec3 c110 = EvalSH9(g_Probes[PIDX(x1, y1, z0)], N);
+    vec3 c001 = EvalSH9(g_Probes[PIDX(x0, y0, z1)], N);
+    vec3 c101 = EvalSH9(g_Probes[PIDX(x1, y0, z1)], N);
+    vec3 c011 = EvalSH9(g_Probes[PIDX(x0, y1, z1)], N);
+    vec3 c111 = EvalSH9(g_Probes[PIDX(x1, y1, z1)], N);
+
+    #undef PIDX
+
+    vec3 sf = smoothstep(0.0, 1.0, f);
+
+    vec3 c00 = mix(c000, c100, sf.x);
+    vec3 c01 = mix(c001, c101, sf.x);
+    vec3 c10 = mix(c010, c110, sf.x);
+    vec3 c11 = mix(c011, c111, sf.x);
+    vec3 c0 = mix(c00, c10, sf.y);
+    vec3 c1 = mix(c01, c11, sf.y);
+    return mix(c0, c1, sf.z);
+}
+
 vec3 SampleProbes(vec3 worldPos, vec3 N) {
-    vec3 totalIrradiance = vec3(0.0);
+    vec3 totalSample = vec3(0.0);
     float totalWeight = 0.0;
 
-    for (int i = 0; i < numProbes; i++) {
-        vec3 delta = worldPos - g_Probes[i].position.xyz;
-        float dist = length(delta);
-        float radius = g_Probes[i].position.w > 0.0 ? g_Probes[i].position.w : 1e9;
-        if (dist > radius) continue;
+    for (int i = 0; i < numGrids; i++) {
+        vec3 bmin = g_Grids[i].boundsMin.xyz;
+        vec3 bmax = g_Grids[i].boundsMax.xyz;
+        vec3 center = (bmin + bmax) * 0.5;
+        vec3 halfSize = (bmax - bmin) * 0.5;
 
-        float weight = 1.0 / (dist * dist + 1.0);
-        totalIrradiance += EvalSH9(g_Probes[i], N) * weight;
-        totalWeight += weight;
+        vec3 d = abs(worldPos - center) - halfSize;
+        float dist = length(max(d, 0.0));
+
+        float fadeRange = length(halfSize) * 2.0;
+        float weight = 1.0 - clamp(dist / fadeRange, 0.0, 1.0);
+        weight = weight * weight;
+
+        if (weight > 0.0) {
+            totalSample += SampleGridTrilinear(g_Grids[i], worldPos, N) * weight;
+            totalWeight += weight;
+        }
     }
 
-    if (totalWeight < 0.0001) return u_AmbientSky;
-    return totalIrradiance / totalWeight;
+    if (totalWeight < 0.0001) return u_AmbientSky / u_GIIntensity;
+
+    vec3 probeResult = totalSample / totalWeight;
+    // Blend probe result with ambient sky based on how much probe coverage we have
+    float coverage = clamp(totalWeight, 0.0, 1.0);
+    return mix(u_AmbientSky / u_GIIntensity, probeResult, coverage);
 }
 
 int GetCascadeIndex(float depth)
@@ -313,7 +386,7 @@ void main()
 
     // vec3 ambient = albedo * u_AmbientSky;
     vec3 probeIrradiance = SampleProbes(worldPos, N);
-    vec3 ambient = albedo * max(probeIrradiance, u_AmbientSky);
+    vec3 ambient = albedo * max(probeIrradiance * u_GIIntensity, u_AmbientSky);
     vec3 finalColor = totalLighting + (emission) + ambient;
 
     // Basic HDR test output
@@ -321,6 +394,6 @@ void main()
 
     //gamma correction
     // hdrColor = pow(hdrColor, vec3(1.0 / 2.2));
-    FragColor = vec4(SampleProbes(worldPos, N) * 1.0, 1.0);
-    // FragColor = vec4(hdrColor, 1.0);
+    // FragColor = vec4(SampleProbes(worldPos, N) * u_GIIntensity, 1.0);
+    FragColor = vec4(hdrColor, 1.0);
 }

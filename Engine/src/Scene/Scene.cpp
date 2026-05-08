@@ -732,13 +732,24 @@ bool Scene::LoadSceneFromDisk(std::string p_strScenePath) {
       Renderer::r_instance->p_bufferManager->ClearBuffer(
           TypeFlags::BUFFER_GI_PROBE_DATA);
 
+      Renderer::r_instance->p_bufferManager->ClearBuffer(
+          TypeFlags::BUFFER_GI_GRID_DATA);
+
       Renderer::r_instance->m_uiNumGI_probes =
           m_GI_Probe_manager.GetProcessedData().size();
       auto &probes = m_GI_Probe_manager.GetProcessedData();
 
+      auto &grids = m_GI_Probe_manager.GetGridData();
+
+      Renderer::r_instance->m_uiNumGI_grids = grids.size();
+
       Renderer::r_instance->p_bufferManager->InsertNewDynamicData(
           probes.data(), sizeof(ProbeGPU) * probes.size(),
           TypeFlags::BUFFER_GI_PROBE_DATA);
+
+      Renderer::r_instance->p_bufferManager->InsertNewDynamicData(
+          grids.data(), sizeof(ProbeGridGPU) * grids.size(),
+          TypeFlags::BUFFER_GI_GRID_DATA);
 
     } else {
       SDL_Log("WARNING: GI probes arent loaded, please make sure a path is "

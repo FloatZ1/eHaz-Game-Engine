@@ -13,7 +13,7 @@ public:
   void LoadProbeData(std::string p_strPath);
 
   std::vector<ProbeGPU> &GetProcessedData();
-
+  std::vector<ProbeGridGPU> &GetGridData();
   void DrawProbeLocations();
 
 private:
@@ -21,6 +21,7 @@ private:
 
   std::vector<Probe> m_vProbes;
   std::vector<ProbeGPU> m_vProcessedProbes;
+  std::vector<ProbeGridGPU> m_vGrids;
 };
 
 } // namespace eHaz

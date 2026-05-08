@@ -27,33 +27,46 @@ void C_GI_manager::LoadProbeData(std::string p_strPath) {
 
   m_vProbes.clear();
   m_vProcessedProbes.clear();
+  m_vGrids.clear();
 
   const auto &l_jRoot = l_jvValue.as_object();
   const auto &l_jGrids = l_jRoot.at("grids").as_array();
 
+  int probeStartIndex = 0;
+
   for (const auto &l_jGrid : l_jGrids) {
     const auto &l_jProbes = l_jGrid.as_object().at("probes").as_array();
 
-    // ---- compute grid radius once per grid ----
-    glm::vec3 gridCenter(
-        (float)l_jGrid.as_object().at("position").as_array()[0].as_double(),
-        (float)l_jGrid.as_object().at("position").as_array()[2].as_double(),
-        -(float)l_jGrid.as_object().at("position").as_array()[1].as_double());
+    int rx = (int)l_jGrid.as_object().at("resolution").as_array()[0].as_int64();
+    int ry = (int)l_jGrid.as_object().at("resolution").as_array()[1].as_int64();
+    int rz = (int)l_jGrid.as_object().at("resolution").as_array()[2].as_int64();
 
-    float maxDist = 0.0f;
+    // Compute AABB from probe positions
+    glm::vec3 boundsMin(FLT_MAX);
+    glm::vec3 boundsMax(-FLT_MAX);
+
     for (const auto &l_jProbe2 : l_jProbes) {
       const auto &p2 = l_jProbe2.as_object().at("position").as_array();
       glm::vec3 probePos((float)p2[0].as_double(), (float)p2[2].as_double(),
                          -(float)p2[1].as_double());
-      maxDist = std::max(maxDist, glm::distance(probePos, gridCenter));
+      boundsMin = glm::min(boundsMin, probePos);
+      boundsMax = glm::max(boundsMax, probePos);
     }
-    float gridRadius = maxDist * 1.2f;
 
-    // ---- load each probe ----
+    // Small padding so boundary probes are inside the AABB
+    glm::vec3 padding = (boundsMax - boundsMin) * 0.05f;
+    boundsMin -= padding;
+    boundsMax += padding;
+
+    ProbeGridGPU l_Grid;
+    l_Grid.boundsMin = glm::vec4(boundsMin, 0.0f);
+    l_Grid.boundsMax = glm::vec4(boundsMax, 0.0f);
+    l_Grid.resolution = glm::ivec4(rx, ry, rz, probeStartIndex);
+    m_vGrids.push_back(l_Grid);
+
     for (const auto &l_jProbe : l_jProbes) {
       const auto &l_jObj = l_jProbe.as_object();
 
-      // position
       const auto &l_jPos = l_jObj.at("position").as_array();
       float bx = (float)l_jPos[0].as_double();
       float by = (float)l_jPos[1].as_double();
@@ -61,9 +74,8 @@ void C_GI_manager::LoadProbeData(std::string p_strPath) {
 
       Probe l_Probe;
       l_Probe.position = glm::vec3(bx, bz, -by);
-      l_Probe.radius = gridRadius;
+      l_Probe.radius = 0.0f;
 
-      // sh9
       const auto &l_jSH = l_jObj.at("sh9").as_array();
       for (int i = 0; i < 9; i++) {
         const auto &l_jCoeff = l_jSH[i].as_array();
@@ -74,9 +86,8 @@ void C_GI_manager::LoadProbeData(std::string p_strPath) {
 
       m_vProbes.push_back(l_Probe);
 
-      // pack into GPU layout
       ProbeGPU l_GPU;
-      l_GPU.position = glm::vec4(l_Probe.position, l_Probe.radius);
+      l_GPU.position = glm::vec4(l_Probe.position, 0.0f);
 
       for (int v = 0; v < 3; v++) {
         int b = v * 3;
@@ -90,15 +101,19 @@ void C_GI_manager::LoadProbeData(std::string p_strPath) {
 
       m_vProcessedProbes.push_back(l_GPU);
     }
+
+    probeStartIndex += (int)l_jProbes.size();
   }
 
-  SDL_Log("GI: Loaded %zu probes from %s", m_vProbes.size(), p_strPath.c_str());
+  SDL_Log("GI: Loaded %zu probes across %zu grids from %s", m_vProbes.size(),
+          m_vGrids.size(), p_strPath.c_str());
 }
+
+std::vector<ProbeGridGPU> &C_GI_manager::GetGridData() { return m_vGrids; }
 
 std::vector<ProbeGPU> &C_GI_manager::GetProcessedData() {
   return m_vProcessedProbes;
 }
-
 void C_GI_manager::DrawProbeLocations() {
 
   for (auto &probe : m_vProbes) {
